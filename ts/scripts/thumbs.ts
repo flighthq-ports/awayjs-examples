@@ -74,6 +74,9 @@ const server = spawn('npx', ['vite', '--port', String(PORT), '--strictPort', '--
   cwd: tsDir,
   stdio: 'ignore',
   detached: true,
+  // BASE_PATH belongs to the deploy, not to a local capture: with it set the dev server serves
+  // pages under /<repo>/ and every navigation below would 404.
+  env: { ...process.env, BASE_PATH: '/' },
 });
 
 function stopServer(): void {

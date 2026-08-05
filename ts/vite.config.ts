@@ -35,7 +35,7 @@ function injectBase(sitePath: string): Plugin {
         // relative in dev — so anchor it to the page's own directory first, or every module 404s
         // at the site root. In a build Vite has already swapped it for an absolute chunk URL, so
         // the rewrite matches nothing and is a no-op.
-        const dir = ctx.path.replace(/index\.html$/, '');
+        const dir = sitePath + ctx.path.replace(/^\//, '').replace(/index\.html$/, '');
         const anchored = html.replace(/src="\.\/([^"]+)"/g, `src="${dir}$1"`);
         return anchored.replace('<head>', `<head>\n    <base href="${sitePath}" />`);
       },

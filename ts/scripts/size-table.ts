@@ -51,7 +51,7 @@ for (const sample of samples) {
       execFileSync(
         'npx',
         ['vite', 'build', '--outDir', outDir, '--emptyOutDir', '--logLevel', 'error'],
-        { cwd: tsDir, env: { ...process.env, RENDERER: renderer, SAMPLE: sample }, stdio: 'pipe' },
+        { cwd: tsDir, env: { ...process.env, RENDERER: renderer, SAMPLE: sample, BASE_PATH: '/' }, stdio: 'pipe' },
       );
     } catch (err) {
       console.error(`build failed: ${sample} [${renderer}]`);
