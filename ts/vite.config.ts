@@ -29,8 +29,16 @@ function injectBase(sitePath: string): Plugin {
   return {
     name: 'flight-base-href',
     transformIndexHtml: {
-      order: 'pre',
-      handler: (html) => html.replace('<head>', `<head>\n    <base href="${sitePath}" />`),
+      order: 'post',
+      handler(html, ctx) {
+        // A base tag governs the page's own <script src="./app.ts"> as well, and Vite leaves that
+        // relative in dev — so anchor it to the page's own directory first, or every module 404s
+        // at the site root. In a build Vite has already swapped it for an absolute chunk URL, so
+        // the rewrite matches nothing and is a no-op.
+        const dir = ctx.path.replace(/index\.html$/, '');
+        const anchored = html.replace(/src="\.\/([^"]+)"/g, `src="${dir}$1"`);
+        return anchored.replace('<head>', `<head>\n    <base href="${sitePath}" />`);
+      },
     },
   };
 }

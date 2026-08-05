@@ -8,16 +8,17 @@
  * Deliberately NOT baselines. Captures come from a software GL backend and animated examples differ
  * between runs, so these are illustrative only — nothing should ever diff them.
  *
- * Playwright is not a dependency of this repo; a 150 MB browser download would be a poor trade for
- * a corpus whose whole point is being cheap to clone. Install it when you want thumbnails:
+ * Playwright is a devDependency (it adds ~18 MB and no longer downloads browsers on install), but
+ * the browser itself is a separate ~380 MB step you only pay for if you want thumbnails:
  *
- *   npm i -D playwright && npx playwright install chromium
+ *   npx playwright install chromium
  *   npm run thumbs
  */
 import { spawn } from 'node:child_process';
 import { existsSync, mkdirSync, readdirSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { chromium } from 'playwright';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const tsDir = resolve(here, '..');
@@ -34,37 +35,6 @@ const SHOT_TIMEOUT = Number(process.env.THUMB_TIMEOUT ?? 60_000);
 /** Optional filter: `npm run thumbs -- particle-explosions` re-runs just that one. */
 const only = process.argv.slice(2);
 
-/** Only the surface this script uses, so playwright need not be a declared dependency. */
-interface ThumbPage {
-  evaluate<T>(fn: () => T): Promise<T>;
-  setViewportSize(size: { width: number; height: number }): Promise<void>;
-  goto(url: string, options?: { waitUntil?: string; timeout?: number }): Promise<unknown>;
-  waitForTimeout(ms: number): Promise<void>;
-  locator(selector: string): {
-    first(): {
-      screenshot(o: { path: string; timeout?: number; animations?: string }): Promise<unknown>;
-    };
-  };
-}
-interface ThumbBrowser {
-  newPage(options?: { viewport?: { width: number; height: number } }): Promise<ThumbPage>;
-  close(): Promise<void>;
-}
-
-// A non-literal specifier keeps TypeScript from trying to resolve a module that is deliberately
-// absent — the check must pass on a clone that has never installed playwright.
-const PLAYWRIGHT: string = 'playwright';
-
-let chromium: { launch(options?: { args?: string[] }): Promise<ThumbBrowser> };
-try {
-  ({ chromium } = (await import(PLAYWRIGHT)) as {
-    chromium: { launch(options?: { args?: string[] }): Promise<ThumbBrowser> };
-  });
-} catch {
-  console.error('thumbs: playwright is not installed.\n');
-  console.error('  npm i -D playwright && npx playwright install chromium\n');
-  process.exit(1);
-}
 
 const examples = readdirSync(srcDir, { withFileTypes: true })
   .filter((e) => e.isDirectory() && existsSync(join(srcDir, e.name, 'index.html')))
@@ -138,14 +108,22 @@ try {
   await waitForServer();
 
   // Hardware GL fails to compile the sprite-batch shader headless; software GL is what works here.
-  const browser = await chromium.launch({
-    args: [
-      '--enable-unsafe-swiftshader',
-      '--use-gl=angle',
-      '--use-angle=swiftshader',
-      '--ignore-gpu-blocklist',
-    ],
-  });
+  let browser;
+  try {
+    browser = await chromium.launch({
+      args: [
+        '--enable-unsafe-swiftshader',
+        '--use-gl=angle',
+        '--use-angle=swiftshader',
+        '--ignore-gpu-blocklist',
+      ],
+    });
+  } catch (err) {
+    // The package is a devDependency, but the browser binary is downloaded separately.
+    console.error(`thumbs: could not launch chromium — ${(err as Error).message.split('\n')[0]}\n`);
+    console.error('  npx playwright install chromium\n');
+    process.exit(1);
+  }
   const page = await browser.newPage({ viewport: { width: WIDTH, height: 720 } });
 
   let ok = 0;
