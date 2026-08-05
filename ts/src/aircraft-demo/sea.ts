@@ -20,7 +20,7 @@ export interface Sea {
 export async function createSea(): Promise<Sea> {
   // Sea normal map — shared between water surface material and the aircraft's MethodMaterial in the
   // original. Here used only for the water, matching the original intent.
-  const seaNormalImage = await loadImageResourceFromUrl('/sea_normals.jpg');
+  const seaNormalImage = await loadImageResourceFromUrl('sea_normals.jpg');
   const seaNormalTex = createTexture({ source: seaNormalImage });
   // Tile the ripples finely so they read as small, distant waves seen from altitude rather than large
   // close-up swells (the AwayJS look, which is wrong for a jet's height).

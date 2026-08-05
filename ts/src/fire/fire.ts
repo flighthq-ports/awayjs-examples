@@ -44,7 +44,7 @@ function createFireSpriteMask(source: Readonly<Image>): Image {
 }
 
 export async function createFireEmitters(scene: Readonly<Scene3D>): Promise<FireEmittersResult> {
-  const fireImage = await loadImageResourceFromUrl('/blue.png');
+  const fireImage = await loadImageResourceFromUrl('blue.png');
   const fireAtlas = createSingleSpriteAtlas(createFireSpriteMask(fireImage));
 
   const config: ParticleEmitterConfig = createParticleEmitterConfig({

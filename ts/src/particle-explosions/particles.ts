@@ -69,22 +69,22 @@ interface LogoDefinition {
 
 const logoDefinitions: readonly LogoDefinition[] = [
   {
-    url: '/chrome.png',
+    url: 'chrome.png',
     offset: [-100 * PARTICLE_SIZE, 0, 0],
     end: [300 * PARTICLE_SIZE, 0, 0],
   },
   {
-    url: '/firefox.png',
+    url: 'firefox.png',
     offset: [100 * PARTICLE_SIZE, 0, 0],
     end: [-300 * PARTICLE_SIZE, 0, 0],
   },
   {
-    url: '/safari.png',
+    url: 'safari.png',
     offset: [0, 0, -100 * PARTICLE_SIZE],
     end: [0, 0, 300 * PARTICLE_SIZE],
   },
   {
-    url: '/ie.png',
+    url: 'ie.png',
     offset: [0, 0, 100 * PARTICLE_SIZE],
     end: [0, 0, -300 * PARTICLE_SIZE],
   },

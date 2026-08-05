@@ -54,7 +54,7 @@ export async function loadCloudTexture(): Promise<ShadedMaterial> {
   cloudMaterial.alphaMode = 'blend';
   cloudMaterial.doubleSided = false;
 
-  const cloudSource = await loadImageResourceFromUrl('/globe/cloud_combined_2048.jpg');
+  const cloudSource = await loadImageResourceFromUrl('globe/cloud_combined_2048.jpg');
   const cloudCanvas = document.createElement('canvas');
   cloudCanvas.width = cloudSource.width;
   cloudCanvas.height = cloudSource.height;

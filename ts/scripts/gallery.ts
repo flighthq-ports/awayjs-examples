@@ -60,16 +60,16 @@ const items = samples
     // the numbers line up down the card and across the grid.
     const backends = s.renderers
       .map((r) => {
-        const href = r === s.primary ? `/${s.id}/` : `/${s.id}/${r}/`;
+        const href = r === s.primary ? `${s.id}/` : `${s.id}/${r}/`;
         return `<a href="${href}" data-id="${s.id}" data-backend="${r}">${r}</a>`;
       })
       .join('<span class="sep">·</span>');
 
     return `      <div class="item">
-        <a class="frame" href="/${s.id}/">
+        <a class="frame" href="${s.id}/">
           <span class="shot" style="background-image:url('thumbs/${s.id}.png')"></span>
         </a>
-        <a class="cap" href="/${s.id}/" data-id="${s.id}">${s.title}</a>
+        <a class="cap" href="${s.id}/" data-id="${s.id}">${s.title}</a>
         ${backends ? `<div class="det">${backends}</div>` : ''}
       </div>`;
   })

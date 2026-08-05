@@ -43,10 +43,10 @@ export async function loadKnights(scene: Readonly<Scene3D>): Promise<KnightsResu
   }
 
   const knightImages = await Promise.all([
-    loadImageResourceFromUrl('/pknight1.png'),
-    loadImageResourceFromUrl('/pknight2.png'),
-    loadImageResourceFromUrl('/pknight3.png'),
-    loadImageResourceFromUrl('/pknight4.png'),
+    loadImageResourceFromUrl('pknight1.png'),
+    loadImageResourceFromUrl('pknight2.png'),
+    loadImageResourceFromUrl('pknight3.png'),
+    loadImageResourceFromUrl('pknight4.png'),
   ]);
 
   for (let i = 0; i < 4; i++) {
@@ -57,7 +57,7 @@ export async function loadKnights(scene: Readonly<Scene3D>): Promise<KnightsResu
     knightMaterials[i]!.diffuseMap = createTexture({ source: knightImages[i]!, colorSpace: 'linear' });
   }
 
-  const md2Buffer = await fetch('/pknight.md2').then((r) => r.arrayBuffer());
+  const md2Buffer = await fetch('pknight.md2').then((r) => r.arrayBuffer());
   const md2Scene = await createScene3DFromMd2(new Uint8Array(md2Buffer));
   const md2Clips = Object.values(md2Scene.animations);
 

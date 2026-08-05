@@ -124,16 +124,16 @@ interface FlareObject {
 // positions empty when their loads never complete, so retain the original indices for placement
 // depth while constructing only the ten entries that can actually load.
 const FLARE_SPECS: readonly FlareSpec[] = [
-  { index: 0, url: '/lensflare/flare10.jpg', size: 3.2, position: -0.01, opacity: 100 },
-  { index: 2, url: '/lensflare/flare7.jpg', size: 2, position: 0, opacity: 17.5 },
-  { index: 3, url: '/lensflare/flare7.jpg', size: 4, position: 0, opacity: 12 },
-  { index: 5, url: '/lensflare/flare6.jpg', size: 1, position: 0.68, opacity: 12 },
-  { index: 6, url: '/lensflare/flare2.jpg', size: 1.25, position: 1.1, opacity: 33 },
-  { index: 7, url: '/lensflare/flare3.jpg', size: 1.75, position: 1.37, opacity: 5 },
-  { index: 8, url: '/lensflare/flare4.jpg', size: 2.75, position: 1.85, opacity: 6 },
-  { index: 9, url: '/lensflare/flare8.jpg', size: 0.5, position: 2.21, opacity: 22 },
-  { index: 10, url: '/lensflare/flare6.jpg', size: 4, position: 2.5, opacity: 3 },
-  { index: 11, url: '/lensflare/flare7.jpg', size: 4.5, position: 2.66, opacity: 18 },
+  { index: 0, url: 'lensflare/flare10.jpg', size: 3.2, position: -0.01, opacity: 100 },
+  { index: 2, url: 'lensflare/flare7.jpg', size: 2, position: 0, opacity: 17.5 },
+  { index: 3, url: 'lensflare/flare7.jpg', size: 4, position: 0, opacity: 12 },
+  { index: 5, url: 'lensflare/flare6.jpg', size: 1, position: 0.68, opacity: 12 },
+  { index: 6, url: 'lensflare/flare2.jpg', size: 1.25, position: 1.1, opacity: 33 },
+  { index: 7, url: 'lensflare/flare3.jpg', size: 1.75, position: 1.37, opacity: 5 },
+  { index: 8, url: 'lensflare/flare4.jpg', size: 2.75, position: 1.85, opacity: 6 },
+  { index: 9, url: 'lensflare/flare8.jpg', size: 0.5, position: 2.21, opacity: 22 },
+  { index: 10, url: 'lensflare/flare6.jpg', size: 4, position: 2.5, opacity: 3 },
+  { index: 11, url: 'lensflare/flare7.jpg', size: 4.5, position: 2.66, opacity: 18 },
 ];
 
 const sunLight = createDirectionalLight({
@@ -251,13 +251,13 @@ const flares: FlareObject[] = FLARE_SPECS.map((spec) => {
 });
 
 const [dayImage, specImage] = await Promise.all([
-  loadImageResourceFromUrl('/globe/land_ocean_ice_2048_match.jpg'),
-  loadImageResourceFromUrl('/globe/earth_specular_2048.jpg'),
+  loadImageResourceFromUrl('globe/land_ocean_ice_2048_match.jpg'),
+  loadImageResourceFromUrl('globe/earth_specular_2048.jpg'),
 ]);
 
 // Night-lights texture: the source is a 16384-wide JPG, so downscale it into a 2048x1024 canvas to
 // keep GPU memory sane, then bind day/night/specular to the earth shader's samplers.
-const nightSource = await loadImageResourceFromUrl('/globe/land_lights_16384.jpg');
+const nightSource = await loadImageResourceFromUrl('globe/land_lights_16384.jpg');
 const nightCanvas = document.createElement('canvas');
 nightCanvas.width = 2048;
 nightCanvas.height = 1024;
@@ -276,12 +276,12 @@ earthMaterial.textures = {
 // Space starfield skybox — convert the AwayJS left-handed cube into Flight's right-handed space.
 // X/Z faces mirror horizontally, Y faces mirror vertically, and the handedness flip swaps ±Z.
 const skyboxFaceUrls = [
-  '/skybox/space_posX.jpg',
-  '/skybox/space_negX.jpg',
-  '/skybox/space_posY.jpg',
-  '/skybox/space_negY.jpg',
-  '/skybox/space_posZ.jpg',
-  '/skybox/space_negZ.jpg',
+  'skybox/space_posX.jpg',
+  'skybox/space_negX.jpg',
+  'skybox/space_posY.jpg',
+  'skybox/space_negY.jpg',
+  'skybox/space_posZ.jpg',
+  'skybox/space_negZ.jpg',
 ];
 const skyboxFaces = await Promise.all(skyboxFaceUrls.map((url) => loadImageResourceFromUrl(url)));
 const skyboxTexture = createCubeTexture();

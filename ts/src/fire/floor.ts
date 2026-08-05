@@ -41,9 +41,9 @@ function createFloorTexture(image: Image, colorSpace: 'linear' | 'srgb' = 'srgb'
 
 export async function loadFloorTextures(material: BlinnPhongMaterial): Promise<void> {
   const [diffuseImg, normalImg, specularImg] = await Promise.all([
-    loadImageResourceFromUrl('/floor_diffuse.jpg'),
-    loadImageResourceFromUrl('/floor_normal.jpg'),
-    loadImageResourceFromUrl('/floor_specular.jpg'),
+    loadImageResourceFromUrl('floor_diffuse.jpg'),
+    loadImageResourceFromUrl('floor_normal.jpg'),
+    loadImageResourceFromUrl('floor_specular.jpg'),
   ]);
   material.diffuseMap = createFloorTexture(diffuseImg);
   material.normalMap = createFloorTexture(normalImg, 'linear');

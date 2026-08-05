@@ -20,6 +20,21 @@ export function listExamples(): string[] {
     .sort();
 }
 
+/**
+ * Every page gets a <base href> so the relative URLs in example code resolve against the site root
+ * rather than the page's own depth. On GitHub Pages the whole site hangs off /<repo>/, so one base
+ * tag makes `sponza/arch_diff.jpg` correct without the examples knowing where they are deployed.
+ */
+function injectBase(sitePath: string): Plugin {
+  return {
+    name: 'flight-base-href',
+    transformIndexHtml: {
+      order: 'pre',
+      handler: (html) => html.replace('<head>', `<head>\n    <base href="${sitePath}" />`),
+    },
+  };
+}
+
 /** thumbs/ is generated for publishing and gitignored; copy it into the build when it exists. */
 function copyThumbs(): Plugin {
   return {
@@ -45,6 +60,10 @@ function copySizes(): Plugin {
 }
 
 export default defineConfig(() => {
+  // GitHub Pages serves a project site from /<repo>/, not the domain root. BASE_PATH is set by the
+  // publish workflow; locally it stays '/'.
+  const sitePath = process.env.BASE_PATH ?? '/';
+
   // Building one example alone is what makes a per-example bundle size meaningful; with every
   // entry in the graph, Rollup shares chunks and the total describes the gallery rather than any
   // one program. `npm run sizes` sets this per build.
@@ -65,7 +84,8 @@ export default defineConfig(() => {
     // src/ is the web root, so an example is served at /<name>/ rather than /src/<name>/ — the
     // directory layout should not show up in the URL a visitor sees.
     root: srcDir,
-    plugins: [copyThumbs(), copySizes()],
+    base: sitePath,
+    plugins: [injectBase(sitePath), copyThumbs(), copySizes()],
     publicDir,
     build: { target: 'es2022', outDir, emptyOutDir: true, rollupOptions: { input } },
   };

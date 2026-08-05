@@ -103,7 +103,7 @@ export async function loadHeadModel(
   let headMesh: Mesh | null = null;
 
   try {
-    const objText = await fetch('/head.obj').then((r) => r.text());
+    const objText = await fetch('head.obj').then((r) => r.text());
     const headScene = createScene3DFromObj(objText);
     const children = getNodeChildren(headScene.root);
     for (const child of children) {

@@ -73,7 +73,7 @@ const hoverMaterial: Material = createBlinnPhongMaterial({
   specular: 0x000000ff,
 });
 
-const buffer = await fetch('/suzanne.awd').then((r) => r.arrayBuffer());
+const buffer = await fetch('suzanne.awd').then((r) => r.arrayBuffer());
 const modelScene = createScene3DFromAwd2(new Uint8Array(buffer));
 
 const templateMesh = findNode(modelScene.root, isMesh) as Mesh | null;

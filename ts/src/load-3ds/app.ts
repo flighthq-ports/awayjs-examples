@@ -120,9 +120,9 @@ const ground = createMesh(groundGeometry, [groundMaterial]);
 addNodeChild(scene.root, ground);
 
 const [modelBuffer, antImage, sandImage] = await Promise.all([
-  fetch('/soldier_ant.3ds').then((r) => r.arrayBuffer()),
-  loadImageResourceFromUrl('/soldier_ant.jpg'),
-  loadImageResourceFromUrl('/CoarseRedSand.jpg'),
+  fetch('soldier_ant.3ds').then((r) => r.arrayBuffer()),
+  loadImageResourceFromUrl('soldier_ant.jpg'),
+  loadImageResourceFromUrl('CoarseRedSand.jpg'),
 ]);
 
 groundMaterial.standard.baseColorMap = createTexture({ source: sandImage });

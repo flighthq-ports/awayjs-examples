@@ -37,7 +37,7 @@ const scene = createScene3D();
 
 const camera = createCameraFromAway({ fov: 70, near: 1, far: 5000 });
 
-const awdBuffer = await fetch('/shambler.awd').then((r) => r.arrayBuffer());
+const awdBuffer = await fetch('shambler.awd').then((r) => r.arrayBuffer());
 const awdDocument = parseAwd2(new Uint8Array(awdBuffer));
 const awdScene = createScene3DFromDocument(awdDocument);
 

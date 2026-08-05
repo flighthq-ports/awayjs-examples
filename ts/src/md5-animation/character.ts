@@ -43,10 +43,10 @@ export interface CharacterData {
 
 export async function loadCharacter(): Promise<CharacterData> {
   const [bodyDiffuse, bodyNormal, bodySpecular, gobImage] = await Promise.all([
-    loadImageResourceFromUrl('/hellknight/hellknight_diffuse.jpg'),
-    loadImageResourceFromUrl('/hellknight/hellknight_normals.png'),
-    loadImageResourceFromUrl('/hellknight/hellknight_specular.png'),
-    loadImageResourceFromUrl('/hellknight/gob.png'),
+    loadImageResourceFromUrl('hellknight/hellknight_diffuse.jpg'),
+    loadImageResourceFromUrl('hellknight/hellknight_normals.png'),
+    loadImageResourceFromUrl('hellknight/hellknight_specular.png'),
+    loadImageResourceFromUrl('hellknight/gob.png'),
   ]);
   // The source drives specular strength from hellknight_specular.png. That map is mostly dark, so it is
   // what keeps the hide matte and confines the wet sheen to the eyes, teeth and open wounds — a uniform
@@ -88,7 +88,7 @@ export async function loadCharacter(): Promise<CharacterData> {
   gobMaterial.alphaMode = 'blend';
   gobMaterial.doubleSided = true;
 
-  const meshText = await fetch('/hellknight/hellknight.md5mesh').then((r) => r.text());
+  const meshText = await fetch('hellknight/hellknight.md5mesh').then((r) => r.text());
   const md5Scene = createScene3DFromMd5Mesh(meshText);
 
   const md5Children = getNodeChildren(md5Scene.root);
@@ -108,7 +108,7 @@ export async function loadCharacter(): Promise<CharacterData> {
   addNodeChild(characterPositionNode.root, characterNode.root);
 
   const animTexts = await Promise.all(
-    ANIM_NAMES.map((name) => fetch(`/hellknight/${name}.md5anim`).then((r) => r.text())),
+    ANIM_NAMES.map((name) => fetch(`hellknight/${name}.md5anim`).then((r) => r.text())),
   );
 
   const clips: Map<string, AnimationClip> = new Map();

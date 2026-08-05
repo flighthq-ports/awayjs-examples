@@ -28,7 +28,7 @@ export const materialNameToTextureFile: Record<string, string> = {
   fabric_e: 'fabric_green_diff.jpg',
   flagpole: 'flagpole_diff.jpg',
   floor: 'floor_a_diff.jpg',
-  '16___Default': '/gi_flag.jpg',
+  '16___Default': 'gi_flag.jpg',
   Material__25: 'lion.jpg',
   roof: 'roof_diff.jpg',
   leaf: 'thorn_diff.png',
@@ -76,7 +76,7 @@ export const materialNameToSpecularFile: Record<string, string> = {
 export const alphaCutoutMaterials = new Set(['chain', 'leaf', 'Material__57']);
 
 export async function loadSponzaTextures(files: readonly string[]): Promise<Image[]> {
-  return Promise.all(files.map((file) => loadImageResourceFromUrl(`/sponza/${file}`)));
+  return Promise.all(files.map((file) => loadImageResourceFromUrl(`sponza/${file}`)));
 }
 
 export function createTextureMap(

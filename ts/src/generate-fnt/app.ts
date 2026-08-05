@@ -57,7 +57,7 @@ registerStandardGlTextureResolvers(state);
 registerGlStandardMaterial(state);
 registerRenderer(state, RichTextKind, defaultGlRichTextRenderer);
 enableGlTextInput();
-const font = await loadFontFromUrl('/georgia.ttf', 'Georgia');
+const font = await loadFontFromUrl('georgia.ttf', 'Georgia');
 
 setGlyphRasterizerBackend(createWebGlyphRasterizerBackend());
 

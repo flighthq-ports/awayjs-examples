@@ -51,7 +51,7 @@ const state = createGlRenderState(canvas, {
 registerStandardGlTextureResolvers(state);
 registerGlStandardMaterial(state);
 registerRenderer(state, RichTextKind, defaultGlRichTextRenderer);
-const font = await loadFontFromUrl('/georgia.ttf', 'Georgia');
+const font = await loadFontFromUrl('georgia.ttf', 'Georgia');
 
 const root = createDisplayObject();
 root.x = canvas.width / 2;

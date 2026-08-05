@@ -115,7 +115,7 @@ export async function loadSceneTextures(materials: SceneMaterials, tilingSampler
   // keeps the round top cap smooth instead of introducing nearest-neighbor stair steps.
   const sphereSampler = createSampler({ magFilter: 'linear', minFilter: 'linear', mipmaps: false });
 
-  const torusWeaveNormalImage = await loadImageResourceFromUrl('/weave_normal.jpg');
+  const torusWeaveNormalImage = await loadImageResourceFromUrl('weave_normal.jpg');
   const torusNormalTex = createTexture({
     source: torusWeaveNormalImage,
     colorSpace: 'linear',
@@ -140,25 +140,25 @@ export async function loadSceneTextures(materials: SceneMaterials, tilingSampler
     applyTextures(
       planeMaterial,
       {
-        diffuse: '/floor_diffuse.jpg',
-        normal: '/floor_normal.jpg',
+        diffuse: 'floor_diffuse.jpg',
+        normal: 'floor_normal.jpg',
       },
       tilingSampler,
       { x: 2, y: 2 },
     ),
-    createMetalRoughnessFromSpecular('/floor_specular.jpg').then((tex) => {
+    createMetalRoughnessFromSpecular('floor_specular.jpg').then((tex) => {
       tex.sampler = tilingSampler;
       setTextureUvScale(tex, 2, 2);
       planeMaterial.metallicRoughnessMap = tex;
     }),
-    loadImageResourceFromUrl('/beachball_diffuse.jpg').then((image) => {
+    loadImageResourceFromUrl('beachball_diffuse.jpg').then((image) => {
       const tex = createTexture({ source: image, sampler: sphereSampler });
       sphereMaterial.baseColorMap = tex;
       // A restrained albedo-matched lift keeps the red panels red beneath the strong cyan fill without
       // making the vinyl look self-lit or erasing the moving directional shading.
       sphereMaterial.emissiveMap = tex;
     }),
-    loadImageResourceFromUrl('/beachball_specular.jpg').then((image) => {
+    loadImageResourceFromUrl('beachball_specular.jpg').then((image) => {
       // AwayJS's modest gloss creates a broad vinyl highlight. The generic conversion combined with
       // the old 0.3 material factor collapsed the bright parts of this map to near-mirror roughness,
       // producing a tiny aliased-looking dot instead of the original soft cyan lobe.
@@ -175,12 +175,12 @@ export async function loadSceneTextures(materials: SceneMaterials, tilingSampler
     applyTextures(
       cubeMaterial,
       {
-        diffuse: '/trinket_diffuse.jpg',
-        normal: '/trinket_normal.jpg',
+        diffuse: 'trinket_diffuse.jpg',
+        normal: 'trinket_normal.jpg',
       },
       tilingSampler,
     ),
-    loadImageResourceFromUrl('/trinket_specular.jpg').then((image) => {
+    loadImageResourceFromUrl('trinket_specular.jpg').then((image) => {
       // Preserve the map's metal/wood separation, but broaden the frame highlight. The generic
       // conversion's 0.12 roughness floor produced razor-white edges on the new Flight renderer.
       const mrImage = createMetallicRoughnessImage(image, (r) => ({
@@ -189,7 +189,7 @@ export async function loadSceneTextures(materials: SceneMaterials, tilingSampler
       }));
       cubeMaterial.metallicRoughnessMap = createTexture({ source: mrImage, colorSpace: 'linear' });
     }),
-    loadImageResourceFromUrl('/weave_diffuse.jpg').then((image) => {
+    loadImageResourceFromUrl('weave_diffuse.jpg').then((image) => {
       const tex = createTexture({ source: image, sampler: tilingSampler });
       torusMaterial.baseColorMap = tex;
     }),

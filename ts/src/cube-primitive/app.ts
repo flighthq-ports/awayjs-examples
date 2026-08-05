@@ -95,7 +95,7 @@ const { directional, ambient } = createDirectionalLightFromAway({
 });
 const lights = createScene3DLights({ ambient, directional });
 
-const image = await loadImageResourceFromUrl('/spacy_texture.png');
+const image = await loadImageResourceFromUrl('spacy_texture.png');
 // The texture contains hard, binary-alpha window cutouts. Mipmap averaging turns those cutouts into
 // bright partial-coverage texels, which show up as pale borders under additive blending. Match the
 // source ImageSampler's smooth base-level sampling without generating alpha-bleeding mip levels.

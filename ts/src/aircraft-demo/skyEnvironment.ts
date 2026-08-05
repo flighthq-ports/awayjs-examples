@@ -16,12 +16,12 @@ import {
 // coordinate systems requires: X faces stay in their slot but are h-flipped, Z faces swap AND h-flip,
 // Y faces stay but v-flip. See agents/conventions/camera.md for the coordinate convention.
 const cubeFaceUrls = [
-  '/skybox/sky_posX.jpg',
-  '/skybox/sky_negX.jpg',
-  '/skybox/sky_posY.jpg',
-  '/skybox/sky_negY.jpg',
-  '/skybox/sky_negZ.jpg',
-  '/skybox/sky_posZ.jpg',
+  'skybox/sky_posX.jpg',
+  'skybox/sky_negX.jpg',
+  'skybox/sky_posY.jpg',
+  'skybox/sky_negY.jpg',
+  'skybox/sky_negZ.jpg',
+  'skybox/sky_posZ.jpg',
 ];
 
 export async function createSkyEnvironment(glState: GlRenderState): Promise<Environment> {

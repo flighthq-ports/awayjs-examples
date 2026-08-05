@@ -52,7 +52,7 @@ const { directional, ambient } = createDirectionalLightFromAway({
 });
 const lights = createScene3DLights({ ambient, directional });
 
-const buffer = await fetch('/suzanne.awd').then((r) => r.arrayBuffer());
+const buffer = await fetch('suzanne.awd').then((r) => r.arrayBuffer());
 const modelScene = createScene3DFromAwd2(new Uint8Array(buffer));
 
 const templateMesh = findNode(modelScene.root, isMesh) as Mesh | null;

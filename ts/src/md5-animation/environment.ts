@@ -22,7 +22,7 @@ export interface EnvironmentData {
 export async function loadEnvironment(): Promise<EnvironmentData> {
   const skyFaceNames = ['posX', 'negX', 'posY', 'negY', 'posZ', 'negZ'];
   const skyImages = await Promise.all(
-    skyFaceNames.map((face) => loadImageResourceFromUrl(`/skybox/grimnight_${face}.png`)),
+    skyFaceNames.map((face) => loadImageResourceFromUrl(`skybox/grimnight_${face}.png`)),
   );
   const skyTexture = createCubeTextureFromAwayFaces(skyImages);
   // Keep the sky as the backdrop while restraining its IBL contribution: a strong environment fill
@@ -30,8 +30,8 @@ export async function loadEnvironment(): Promise<EnvironmentData> {
   const environment = createEnvironment({ environment: skyTexture, intensity: 0.45 });
 
   const [rockDiffuse, rockNormal] = await Promise.all([
-    loadImageResourceFromUrl('/rockbase_diffuse.jpg'),
-    loadImageResourceFromUrl('/rockbase_normals.png'),
+    loadImageResourceFromUrl('rockbase_diffuse.jpg'),
+    loadImageResourceFromUrl('rockbase_normals.png'),
   ]);
 
   const groundSampler = createTilingSampler();

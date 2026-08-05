@@ -45,7 +45,7 @@ const { directional, ambient } = createDirectionalLightFromAway({
 
 const lights = createScene3DLights({ ambient, directional });
 
-const image = await loadImageResourceFromUrl('/dots.png');
+const image = await loadImageResourceFromUrl('dots.png');
 // Flight builds the torus in its native right-handed space while the camera helper mirrors z
 // (left-handed AwayJS -> right-handed Flight). The unmirrored mesh renders as the z-reflection of the
 // original, flipping the texture along the tube (v) axis; mirror v back to match the AwayJS look.
