@@ -41,6 +41,14 @@ export interface CharacterData {
   gobTexture: Texture2D;
 }
 
+async function fetchText(url: string): Promise<string> {
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`${url}: ${response.status} ${response.statusText}`);
+  }
+  return response.text();
+}
+
 export async function loadCharacter(): Promise<CharacterData> {
   const [bodyDiffuse, bodyNormal, bodySpecular, gobImage] = await Promise.all([
     loadImageResourceFromUrl('hellknight/hellknight_diffuse.jpg'),
@@ -57,12 +65,8 @@ export async function loadCharacter(): Promise<CharacterData> {
       baseColorMap: createTexture({ source: bodyDiffuse }),
       metallic: 0,
       normalMap: createTexture({ source: bodyNormal, colorSpace: 'linear' }),
-      // Held well below the source's full strength on purpose. computeMeshGeometryTangents derives this
-      // model's basis from its UV gradients, and the hellknight's heavily mirrored, island-split character
-      // UVs make that basis swing between islands — visualising v_tangent shows flat patches of unrelated
-      // directions where the normals themselves are perfectly smooth. Applied at full strength the normal
-      // map inherits those jumps and the hands, torso and feet each light as if lit from somewhere
-      // slightly different. This keeps the musculature readable while staying under that threshold.
+      // AwayJS applies the map at full strength; 1 is the equivalent here. The ground in environment.ts
+      // takes a small lift above that, but the character's map needs none.
       normalScale: 1,
       roughness: 0.46,
     }),
@@ -88,7 +92,7 @@ export async function loadCharacter(): Promise<CharacterData> {
   gobMaterial.alphaMode = 'blend';
   gobMaterial.doubleSided = true;
 
-  const meshText = await fetch('hellknight/hellknight.md5mesh').then((r) => r.text());
+  const meshText = await fetchText('hellknight/hellknight.md5mesh');
   const md5Scene = createScene3DFromMd5Mesh(meshText);
 
   const md5Children = getNodeChildren(md5Scene.root);
@@ -104,17 +108,36 @@ export async function loadCharacter(): Promise<CharacterData> {
     }
     addNodeChild(characterNode.root, child);
   }
-  const jointNodes = skinnedMeshes[0]?.skin?.skeleton.joints ?? [];
+  // Every mesh in a .md5mesh shares the file's one skeleton, so the first skinned mesh supplies the
+  // joints all clips bind to. Without it parseMd5Anim would bind to an empty array and hand back clips
+  // that animate nothing, which is indistinguishable from a working load until the model stands still.
+  const skeleton = skinnedMeshes[0]?.skin?.skeleton;
+  if (!skeleton) {
+    throw new Error('hellknight.md5mesh produced no skinned mesh');
+  }
+  const jointNodes = skeleton.joints;
   addNodeChild(characterPositionNode.root, characterNode.root);
 
+  // A clip that fails to load is skipped rather than fatal — app.ts falls back to leaving that action
+  // unplayed — but it is reported, so a 404 is never mistaken for an animation the model simply lacks.
   const animTexts = await Promise.all(
-    ANIM_NAMES.map((name) => fetch(`hellknight/${name}.md5anim`).then((r) => r.text())),
+    ANIM_NAMES.map((name) =>
+      fetchText(`hellknight/${name}.md5anim`).catch((error: unknown) => {
+        console.error(`animation "${name}" failed to load: ${String(error)}`);
+        return null;
+      }),
+    ),
   );
 
   const clips: Map<string, AnimationClip> = new Map();
   for (let i = 0; i < ANIM_NAMES.length; i++) {
-    const clip = parseMd5Anim(animTexts[i]!, jointNodes);
-    if (!clip) continue;
+    const animText = animTexts[i];
+    if (animText == null) continue;
+    const clip = parseMd5Anim(animText, jointNodes);
+    if (!clip) {
+      console.error(`animation "${ANIM_NAMES[i]}" failed to parse`);
+      continue;
+    }
     // AwayJS consumes joint zero's translation as owner root motion and omits it from the rendered
     // skeleton for every clip. Zero it here so the skeleton doesn't shift inside the mesh.
     for (const channel of clip.channels) {
