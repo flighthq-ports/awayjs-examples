@@ -8,3 +8,5 @@ out/
 # generated for publishing by `npm run thumbs`
 ts/src/thumbs/
 ts/src/sizes.json
+
+.quimby
