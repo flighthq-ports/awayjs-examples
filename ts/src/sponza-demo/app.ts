@@ -78,6 +78,10 @@ const { directional, ambient } = createDirectionalLightFromAway({
     Math.sin(lightElevation) * Math.sin(lightAzimuth),
   ),
   color: 0xeedddd,
+  // Declared to keep the AwayJS light description complete, but INERT in this scene: the baked
+  // environment IBL below replaces the ambient term rather than summing with it. Raising this 4.7×
+  // moves mean luma by 0.5 and near-black by 0.2 points — i.e. nothing. Tune `intensity` on the
+  // environment instead; this is not the fill dial it looks like.
   ambient: 0.3,
   ambientColor: 0x808090,
 });
@@ -155,9 +159,13 @@ const lights = createScene3DLights({ ambient, directional, point: torches.lights
 const cubeTexture = createCubeTextureFromAwayFaces(skyboxFaceImages);
 const environment = createEnvironment({
   environment: cubeTexture,
-  // The original skybox was only a backdrop. A restrained IBL contribution gives the remastered PBR
-  // materials plausible reflections without flattening the courtyard's sun/shadow contrast.
-  intensity: 0.4,
+  // The original skybox was only a backdrop. This is the scene's entire fill: baking an IBL supersedes
+  // the AmbientLight above rather than adding to it, so `ambient: 0.3` contributes nothing and this
+  // number is the only dial that opens the arcades. At the previous 0.4 the shadow side crushed —
+  // 16% of the frame sat at near-black — which is what read as harsh contrast rather than any
+  // highlight clipping, of which there was none. Raised until the darks hold detail without
+  // flattening the courtyard's sun/shadow split.
+  intensity: 0.85,
 });
 bakeGlEnvironmentIbl(ctx.state, environment);
 const skyboxRef: SkyboxRenderState = { pipeline: null };

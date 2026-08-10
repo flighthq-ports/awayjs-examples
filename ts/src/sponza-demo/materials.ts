@@ -1,7 +1,6 @@
 import type { ExtendedPbrMaterial, Image, Material, Mesh, Node3D, Texture2D } from '@flighthq/sdk';
 import {
   createExtendedPbrMaterial,
-  createSpecularPbrExtension,
   createStandardPbrMaterialProperties,
   createTexture,
   createTilingSampler,
@@ -105,17 +104,16 @@ export function createTextureMap(
 
 const knownMaterialNames = new Set(Object.keys(materialNameToTextureFile));
 
-// These maps already contain the three fabric dyes, but direct PBR exposure and atmospheric fill can
-// wash their non-dominant channels toward grey. A restrained multiplicative grade preserves the
-// authored weave and gold trim while keeping the blue, red, and green variants distinct.
-const materialBaseColor: Partial<Record<string, number>> = {
-  fabric_g: 0x94b8ffff,
-  fabric_c: 0xffa090ff,
-  fabric_f: 0xa0ffadff,
-  fabric_d: 0x94b8ffff,
-  fabric_a: 0xffa090ff,
-  fabric_e: 0xa0ffadff,
-};
+// Deliberately empty. This used to carry a per-fabric colour multiply — blue, red and green tints on
+// the six fabric_* materials — to force the curtain dyes back after they washed toward grey. It worked,
+// and it cost the gold: a multiply rescales every hue in a map toward the tint, and these maps also
+// carry gold medallions and borders. A representative gold texel at hue 41° came out at 22° (orange),
+// 59° (olive) or 79° (chartreuse) depending on the curtain, losing up to two thirds of its saturation.
+// The gold could not survive it, which is why Sponza had none.
+//
+// The washing it compensated for came from the specular extension below, not from the textures — those
+// are vivid, 68–85% saturation. With that fixed the dyes stand on their own and no tint is needed.
+const materialBaseColor: Partial<Record<string, number>> = {};
 
 // The source only supplies diffuse/specular/normal maps, so these are deliberately conservative
 // material classifications rather than an attempted texture-channel conversion. Roughness carries
@@ -163,11 +161,26 @@ export function getOrCreateMaterial(
 
   const textureFile = materialNameToTextureFile[name];
   const normalFile = materialNameToNormalFile[name];
-  const specularFile = materialNameToSpecularFile[name];
-  const specularMap = specularFile ? (textureMap.get(specularFile) ?? null) : null;
 
-  // Extended PBR lets us keep Sponza's original RGB specular maps without misreading them as
-  // roughness. (The scalar SpecularPbr map is alpha-only; these JPGs belong on specularColorMap.)
+  // No specular extension, despite Sponza shipping RGB specular maps that it would seem to want. Routed
+  // through specularColorMap it desaturates the whole scene: with the fabric tints removed and fill held
+  // constant, dropping the extension moves overall saturation from 45% to 66% and lifts the curtain dyes
+  // from an indistinguishable brown back to red, blue and green — with the gold trim legible again.
+  //
+  // This is not simply a strength problem, and the obvious fixes were tried and measured. A specular
+  // factor of 0.2 or 0.35 does not recover the colour. Nor does correcting the colour space: these maps
+  // were built as 'linear' while the SDK's own glTF loader resolves specularColorTexture as 'srgb', and
+  // fixing that to match — which should drop a #333 map from F0 0.2 to about 0.033, below the 0.04
+  // dielectric default and therefore near-invisible — still leaves saturation at 45%. A map that faint
+  // should be indistinguishable from no extension at all, so the desaturation looks like a defect in the
+  // extension rather than a value we are choosing badly. Worth raising upstream with these numbers.
+  //
+  // The cost of leaving it out is the authored specular variation on stone, floor and metal. Judged the
+  // lesser loss: it costs some highlight detail, where the extension costs every material its colour.
+  //
+  // materialNameToSpecularFile and its eighteen maps are still declared and still fetched, so restoring
+  // this is one line once the extension behaves. That is deliberate, not an oversight — but it is real
+  // load-time waste in the meantime, and should be dropped if the extension stays out for good.
   mat = createExtendedPbrMaterial({
     standard: createStandardPbrMaterialProperties({
       baseColor: materialBaseColor[name] ?? 0xffffffff,
@@ -176,7 +189,7 @@ export function getOrCreateMaterial(
       normalMap: normalFile ? (textureMap.get(normalFile) ?? null) : null,
       roughness: materialRoughness[name] ?? 0.7,
     }),
-    extensions: specularMap ? [createSpecularPbrExtension({ specularColorMap: specularMap })] : [],
+    extensions: [],
   });
 
   if (alphaCutoutMaterials.has(name)) {
