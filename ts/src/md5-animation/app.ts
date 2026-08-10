@@ -79,13 +79,22 @@ const scene = createScene3D();
 
 const camera = createCameraFromAway({ fov: 60, far: 5000 });
 
-const cameraTarget = createVector3(0, 50, 0);
+// DELIBERATE DEVIATION from the source. AwayJS fixes its camera at (0, 160, -200) looking at a y=50
+// placeholder — 160 units up over a ~131-unit character, angled about 29° DOWN. Two things are wrong
+// with reproducing that here. The hellknight is a Doom asset, authored to be met head-on by a
+// first-person player, and from above you read the top of its skull and shoulders instead of its face.
+// And that angle puts the horizon off the top of the frame, so grimnight — a full moonlit skybox that
+// ships with this example — never appears on screen at all.
+//
+// Dropping to roughly player eye height and tilting ~9° UP fixes both: the silhouette reads against
+// the moon, and the model is seen the way it was sculpted to be seen. The camera stays fixed and the
+// walk cycle still moves in place, so everything downstream of it is unchanged.
+const cameraTarget = createVector3(0, 92, 0);
 const up = createVector3(0, 1, 0);
-const eye = createVector3(...awayPosition(0, 160, -200));
+const eye = createVector3(...awayPosition(0, 78, -145));
 
 function updateCamera(): void {
-  // AwayJS uses a fixed camera at (0, 160, -200), looking at a y=50 placeholder parented to the
-  // character. The MD5 walk cycle moves in place; turning the character does not orbit the camera.
+  // Fixed camera: the MD5 walk cycle moves in place, and turning the character does not orbit it.
   setCamera3DViewMatrix4FromLookAt(camera, eye, cameraTarget, up);
 }
 
