@@ -115,8 +115,14 @@ addNodeChild(scene.root, groundMesh);
 // filter over the image.
 const effects = [
   fogEffect,
-  createToneMapEffect({ exposure: 1.025 }),
-  createVignetteEffect({ intensity: 0.36, radius: 0.75, softness: 0.58 }),
+  // Exposure carries most of the lift back. The bleak pass took three bites out of the frame at once —
+  // the ground desaturated toward slate, the point lights came off full chroma, and the vignette pulled
+  // the corners down — and together they overshot into genuinely underexposed. Raising exposure rather
+  // than ambient restores the level while leaving the shadow/highlight ratio the grade established.
+  createToneMapEffect({ exposure: 1.12 }),
+  // Softened alongside that. At 0.36 over an already-dark frame the corners stopped reading as falloff
+  // and started reading as a border.
+  createVignetteEffect({ intensity: 0.26, radius: 0.8, softness: 0.6 }),
   // SMAA rather than FXAA. The hellknight's normal map is high frequency and the specular lobe over it
   // aliases into isolated bright pixels scattered across the hide — measured at 67 in a head close-up,
   // and needing BOTH the normal map and the specular extension to appear (drop either and it falls to

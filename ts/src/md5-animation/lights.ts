@@ -67,7 +67,7 @@ export function createMd5LightRig(): Md5LightRig {
     // surfaces went blue-grey and the hide stopped reading as hide. Level and colour are both set
     // against character.ts's material — the two were balanced together and moving one alone will
     // over- or under-expose the body.
-    tuning: { diffuse: 2.0, ambient: 2.2, ambientColor: 0x504a4c },
+    tuning: { diffuse: 2.0, ambient: 2.6, ambientColor: 0x504a4c },
   });
 
   const lights = createScene3DLights({ ambient, directional, point: [redLight, blueLight] });
