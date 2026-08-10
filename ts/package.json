@@ -22,7 +22,7 @@
     "check": "npm run typecheck && npm run lint:assets && npm run build"
   },
   "dependencies": {
-    "@flighthq/sdk": "^0.3.1-next.425.a3192ab"
+    "@flighthq/sdk": "^0.3.1-next.493.539802d"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",

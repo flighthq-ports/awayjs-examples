@@ -15,6 +15,7 @@ import {
   loadScene3DResources,
   parseAwd2,
   prepareMeshSkinning,
+  registerWebImageDecoders,
   updateMeshSkin,
   walkNodeDescendants,
 } from '@flighthq/sdk';
@@ -48,6 +49,7 @@ const lights: Scene3DLights = createScene3DLightsFromDocument(awdDocument);
 
 // The parsed texture references retain their document resource back-edge, so the ordinary load pass
 // resolves the embedded diffuse/normal/specular byte blobs without a material-texture lister.
+registerWebImageDecoders();
 const resourceResolver = createBuiltInScene3DResourceResolver();
 await loadScene3DResources(awdScene, resourceResolver);
 addNodeChild(scene.root, awdScene.root);
