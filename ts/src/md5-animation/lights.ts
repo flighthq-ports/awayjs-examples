@@ -56,7 +56,13 @@ export function createMd5LightRig(): Md5LightRig {
     // Baking the skybox as an IBL instead does not work: the environment fill replaces the ambient
     // term rather than adding to it, and grimnight is dark enough that the trade loses more fill than
     // it gains while giving up this dial. Hence a flat ambient, deliberately.
-    tuning: { diffuse: 2.0, ambient: 2.4, ambientColor: 0x46495c },
+    //
+    // The colour is a warm grey rather than the source's blue-grey because this fill is now the only
+    // thing opposing the roaming blue light on the surfaces the key never reaches. Left cool, those
+    // surfaces went blue-grey and the hide stopped reading as hide. Level and colour are both set
+    // against character.ts's material — the two were balanced together and moving one alone will
+    // over- or under-expose the body.
+    tuning: { diffuse: 2.0, ambient: 2.2, ambientColor: 0x504a4c },
   });
 
   const lights = createScene3DLights({ ambient, directional, point: [redLight, blueLight] });
