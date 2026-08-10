@@ -11,14 +11,19 @@ export interface Md5LightRig {
 }
 
 export function createMd5LightRig(): Md5LightRig {
+  // AwayJS authors these as 0xff1111 and 0x1111ff — primaries at full chroma. Reproduced literally they
+  // lay a neon pink and electric blue rim over the hide, which is the single most artificial thing left
+  // in the frame and reads as a tech demo rather than a place. Pulled back toward earth: the same two
+  // hues, the same roles, at a chroma that lets the diffuse texture stay the thing you are looking at.
+  // Deliberate deviation, and the one the eye notices most, so it is stated here rather than buried.
   const redLight = createPointLightFromAway({
-    color: 0xff1111,
+    color: 0xb8483a,
     diffuse: 1.05,
     range: 5000,
     referenceDistance: 900,
   });
   const blueLight = createPointLightFromAway({
-    color: 0x1111ff,
+    color: 0x3f4a9e,
     diffuse: 1.05,
     range: 5000,
     referenceDistance: 900,
