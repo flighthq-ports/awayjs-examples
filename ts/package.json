@@ -22,6 +22,8 @@
     "check": "npm run typecheck && npm run lint:assets && npm run build"
   },
   "dependencies": {
+    "@flighthq/effects-gl": "^0.3.1-next.493.539802d",
+    "@flighthq/render-gl": "^0.3.1-next.493.539802d",
     "@flighthq/sdk": "^0.3.1-next.493.539802d"
   },
   "devDependencies": {

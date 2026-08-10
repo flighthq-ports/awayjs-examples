@@ -175,6 +175,11 @@ export function getOrCreateMaterial(
   // should be indistinguishable from no extension at all, so the desaturation looks like a defect in the
   // extension rather than a value we are choosing badly. Worth raising upstream with these numbers.
   //
+  // Note the same extension behaves correctly on the hellknight in md5-animation, where its near-black
+  // map suppresses specular and keeps the hide matte — removing it there makes the creature glossy. So
+  // this is not "the extension is broken everywhere"; it is specific to how these maps land here, which
+  // is worth stating in any upstream report.
+  //
   // The cost of leaving it out is the authored specular variation on stone, floor and metal. Judged the
   // lesser loss: it costs some highlight detail, where the extension costs every material its colour.
   //

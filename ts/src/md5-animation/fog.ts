@@ -1,4 +1,10 @@
 import type { GlRenderEffectRunner, ScreenSpaceFogEffect } from '@flighthq/sdk';
+// These three are not on the @flighthq/sdk barrel — writing a custom effect runner needs the GL
+// plumbing directly, so effects-gl and render-gl are real dependencies of this example and are
+// declared as such in package.json. They must be upgraded in lockstep with the sdk: upgrading the sdk
+// alone leaves these pinned to the older prerelease, npm nests a second @flighthq/types under the sdk,
+// and the duplicate module makes the sdk's star re-exports ambiguous — which silently drops exported
+// bindings at bundle time rather than failing loudly.
 import { getGlEffectProgram, getGlEffectUniformLocation } from '@flighthq/effects-gl/contract';
 import { drawGlFullscreenPass } from '@flighthq/render-gl/contract';
 

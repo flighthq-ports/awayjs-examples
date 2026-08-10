@@ -8,7 +8,7 @@ import {
   createAabb,
   createAnimationPlayer,
   createCamera3D,
-  createFxaaEffect,
+  createSmaaEffect,
   createGlCanvasElement,
   createGlRenderEffectPipeline,
   createGlRenderState,
@@ -18,7 +18,7 @@ import {
   createToneMapEffect,
   createVector3,
   createVignetteEffect,
-  defaultGlFxaaEffectRunner,
+  defaultGlSmaaEffectRunner,
   defaultGlToneMapEffectRunner,
   defaultGlVignetteEffectRunner,
   DEG_TO_RAD,
@@ -74,7 +74,7 @@ registerStandardGlTextureResolvers(glState);
 registerGlStandardPbrMaterial(glState);
 registerGlExtendedPbrMaterial(glState);
 registerGlSpecularPbrExtension(glState);
-registerGlRenderEffect(glState, 'FxaaEffect', defaultGlFxaaEffectRunner);
+registerGlRenderEffect(glState, 'SmaaEffect', defaultGlSmaaEffectRunner);
 registerGlRenderEffect(glState, 'ScreenSpaceFogEffect', backgroundAwareFogEffectRunner);
 registerGlRenderEffect(glState, 'ToneMapEffect', defaultGlToneMapEffectRunner);
 registerGlRenderEffect(glState, 'VignetteEffect', defaultGlVignetteEffectRunner);
@@ -117,7 +117,13 @@ const effects = [
   fogEffect,
   createToneMapEffect({ exposure: 1.025 }),
   createVignetteEffect({ intensity: 0.36, radius: 0.75, softness: 0.58 }),
-  createFxaaEffect(),
+  // SMAA rather than FXAA. The hellknight's normal map is high frequency and the specular lobe over it
+  // aliases into isolated bright pixels scattered across the hide — measured at 67 in a head close-up,
+  // and needing BOTH the normal map and the specular extension to appear (drop either and it falls to
+  // ~14). FXAA cannot help: it filters geometric edges, and this aliasing is in the shading. SMAA takes
+  // it to 9, and does so while keeping more detail than FXAA was leaving — a Laplacian detail measure
+  // over the same crop reads 10.17 against FXAA's 8.52, because FXAA was softening the face to get less.
+  createSmaaEffect(),
 ];
 
 const lightRig = createMd5LightRig();

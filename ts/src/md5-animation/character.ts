@@ -16,10 +16,17 @@ import {
   parseMd5Anim,
 } from '@flighthq/sdk';
 
-/** Roughness assigned where the specular map is black — bare hide, the great majority of the body. */
-const HIDE_ROUGHNESS = 0.55;
-/** Roughness assigned where it is white — eyes, teeth, the wet interior of open wounds. */
-const WET_ROUGHNESS = 0.24;
+/** Roughness at the dull end of the specular map — bare hide, the great majority of the body. */
+const HIDE_ROUGHNESS = 0.66;
+/** Roughness at the bright end — eyes, teeth, the wet interior of open wounds. */
+const WET_ROUGHNESS = 0.22;
+// Percentiles of the map's own luma treated as each end of the range. Deliberately lopsided: the map's
+// luma is a tight cluster and nearly all of that cluster IS dry hide, so a symmetric 2/98 stretch spread
+// the bulk across the whole range and made typical hide glossier than leaving it alone — median
+// roughness 0.52 before, 0.48 after, exactly backwards. Anchoring the floor above the cluster keeps the
+// body at HIDE_ROUGHNESS and lets only the bright tail — eyes, teeth, wound interiors — travel toward wet.
+const GLOSS_FLOOR_PERCENTILE = 0.8;
+const GLOSS_CEIL_PERCENTILE = 0.999;
 
 /**
  * A Doom-era specular map encodes two things PBR keeps apart: how strongly a texel reflects, and how
@@ -34,6 +41,19 @@ const WET_ROUGHNESS = 0.24;
  * blue-grey because nothing was tempering the diffuse response any more. Both halves of the original
  * map are doing work, so both are kept.
  *
+ * The map's luma has to be rescaled to its own range before it can drive anything. It occupies roughly
+ * 0.06 to 0.23 — id authored it as a specular *multiplier*, not as a 0–1 material parameter — so reading
+ * it directly produced roughness between 0.51 and 0.55 across the entire body. WET_ROUGHNESS was never
+ * reached anywhere: measured over the whole map, 0% of the surface came out below 0.40. The wet/dry
+ * variation this function exists to create simply did not happen. Normalising against the map's own
+ * percentiles is what makes the two constants above mean what they say.
+ *
+ * Rescaling also raises the hide off that accidental 0.52. That matters beyond appearance: a tight
+ * specular lobe over this normal map aliases badly, throwing isolated bright pixels across the body at
+ * one sample per pixel. Widening the lobe on the 98% of the surface that is dry hide is the part of
+ * that fix available from here — FXAA cannot touch it, since the aliasing is in the shading rather
+ * than on a geometric edge.
+ *
  * glTF packs roughness in G and metallic in B, which is what the renderer samples.
  */
 function buildRoughnessMapFromSpecular(specular: Image): Image | null {
@@ -47,10 +67,28 @@ function buildRoughnessMapFromSpecular(specular: Image): Image | null {
   ctx.drawImage(source, 0, 0, canvas.width, canvas.height);
   const image = ctx.getImageData(0, 0, canvas.width, canvas.height);
   const data = image.data;
+
+  // Rec. 601 luma throughout: the map is near-grey, but the wound interiors carry a red tint that a
+  // plain red-channel read would exaggerate into glossy patches across the surrounding hide.
+  const histogram = new Uint32Array(256);
   for (let i = 0; i < data.length; i += 4) {
-    // Rec. 601 luma: the map is near-grey, but the wound interiors carry a red tint that a plain
-    // red-channel read would exaggerate into glossy patches across the surrounding hide.
-    const gloss = (data[i]! * 0.299 + data[i + 1]! * 0.587 + data[i + 2]! * 0.114) / 255;
+    histogram[Math.round(data[i]! * 0.299 + data[i + 1]! * 0.587 + data[i + 2]! * 0.114)]! += 1;
+  }
+  const texels = data.length / 4;
+  const percentile = (target: number): number => {
+    let seen = 0;
+    for (let v = 0; v < 256; v++) {
+      seen += histogram[v]!;
+      if (seen >= texels * target) return v / 255;
+    }
+    return 1;
+  };
+  const floor = percentile(GLOSS_FLOOR_PERCENTILE);
+  const span = Math.max(1e-4, percentile(GLOSS_CEIL_PERCENTILE) - floor);
+
+  for (let i = 0; i < data.length; i += 4) {
+    const luma = (data[i]! * 0.299 + data[i + 1]! * 0.587 + data[i + 2]! * 0.114) / 255;
+    const gloss = Math.max(0, Math.min(1, (luma - floor) / span));
     data[i] = 0;
     data[i + 1] = Math.round((HIDE_ROUGHNESS + (WET_ROUGHNESS - HIDE_ROUGHNESS) * gloss) * 255);
     data[i + 2] = 0;
