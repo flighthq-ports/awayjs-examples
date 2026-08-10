@@ -17,8 +17,10 @@ import {
   createScene3D,
   createToneMapEffect,
   createVector3,
+  createVignetteEffect,
   defaultGlFxaaEffectRunner,
   defaultGlToneMapEffectRunner,
+  defaultGlVignetteEffectRunner,
   DEG_TO_RAD,
   drawGlScene3DShadowMap,
   invalidateNodeLocalTransform,
@@ -75,6 +77,7 @@ registerGlSpecularPbrExtension(glState);
 registerGlRenderEffect(glState, 'FxaaEffect', defaultGlFxaaEffectRunner);
 registerGlRenderEffect(glState, 'ScreenSpaceFogEffect', backgroundAwareFogEffectRunner);
 registerGlRenderEffect(glState, 'ToneMapEffect', defaultGlToneMapEffectRunner);
+registerGlRenderEffect(glState, 'VignetteEffect', defaultGlVignetteEffectRunner);
 const scene = createScene3D();
 
 const camera = createCameraFromAway({ fov: 60, far: 5000 });
@@ -100,7 +103,22 @@ function updateCamera(): void {
 
 const [{ environment, groundMesh, fogEffect }, character] = await Promise.all([loadEnvironment(), loadCharacter()]);
 addNodeChild(scene.root, groundMesh);
-const effects = [fogEffect, createToneMapEffect({ exposure: 1.025 }), createFxaaEffect()];
+// The tone map runs on its default operator, which is ACES — measured byte-identical to passing 'aces'
+// explicitly. That is also the best of the five here: agx and filmic both wash the ground out and drain
+// the sky, and uncharted2 flattens the whole frame. Left implicit rather than pinned, since the default
+// is already the one we want.
+//
+// The vignette is the only grade applied. The eye-level camera fills the lower half of the frame with
+// brightly lit orange rock that runs right to the edges and competes with the character for attention;
+// pulling the corners down settles that and deepens the night without touching the ambient fill the
+// character's shading now depends on. Kept mild — enough to bias the eye, not enough to read as a
+// filter over the image.
+const effects = [
+  fogEffect,
+  createToneMapEffect({ exposure: 1.025 }),
+  createVignetteEffect({ intensity: 0.36, radius: 0.75, softness: 0.58 }),
+  createFxaaEffect(),
+];
 
 const lightRig = createMd5LightRig();
 const { directional: whiteLight, lights } = lightRig;
