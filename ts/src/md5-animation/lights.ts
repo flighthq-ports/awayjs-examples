@@ -45,7 +45,18 @@ export function createMd5LightRig(): Md5LightRig {
     // full-strength point lights plus ambient. Hence this balance: the key leads enough to own the form
     // and agree with the shadow, while the roaming pair stays strong enough to keep the off-key side
     // alive and coloured, as in the original.
-    tuning: { diffuse: 2.0, ambient: 1.15, ambientColor: 0x3e4556 },
+    //
+    // Ambient carries more weight here than its AwayJS value suggests because it is the scene's ONLY
+    // fill. Every emitter points inward from above or from the side — the key sits ~21° up, the red
+    // light orbits near y=400 over a ~131-unit character, and the blue light swings out to ~950 units
+    // horizontally — so nothing reaches a downward-facing surface. Under the cheekbones and jaw, the
+    // belly and the underside received no direct light at all and crushed to black. Raising this fills
+    // them without touching the key/point balance above, which is what the geometry actually needs.
+    //
+    // Baking the skybox as an IBL instead does not work: the environment fill replaces the ambient
+    // term rather than adding to it, and grimnight is dark enough that the trade loses more fill than
+    // it gains while giving up this dial. Hence a flat ambient, deliberately.
+    tuning: { diffuse: 2.0, ambient: 2.4, ambientColor: 0x46495c },
   });
 
   const lights = createScene3DLights({ ambient, directional, point: [redLight, blueLight] });
