@@ -105,10 +105,21 @@ export async function loadKnights(scene: Readonly<Scene3D>): Promise<KnightsResu
     animationBuckets.push({ driver, player, track });
   }
 
+  // Seeded rather than Math.random(). The army needs to look unplanned, but it does not need to be
+  // different every time the page loads — and while it was, no two runs of this example could be
+  // compared. A regression that changed how the knights shade was indistinguishable from the shuffle
+  // handing you a different mix of skins and poses, which is exactly the trap it laid for the review
+  // that found the winding bug. One constant makes the scene reproducible while looking identical.
+  let rngState = 0x9e3779b9;
+  const nextRandom = (): number => {
+    rngState = (Math.imul(rngState, 1664525) + 1013904223) >>> 0;
+    return rngState / 0x100000000;
+  };
+
   for (let i = 0; i < numWide; i++) {
     for (let j = 0; j < numDeep; j++) {
-      const material = knightMaterials[Math.floor(Math.random() * knightMaterials.length)]!;
-      const bucket = animationBuckets[Math.floor(Math.random() * animationBuckets.length)]!;
+      const material = knightMaterials[Math.floor(nextRandom() * knightMaterials.length)]!;
+      const bucket = animationBuckets[Math.floor(nextRandom() * animationBuckets.length)]!;
       const knight = createMesh(bucket.driver.geometry, [material]);
 
       const x = ((i - (numWide - 1) / 2) * 5000) / numWide;
