@@ -42,9 +42,9 @@ function createSoftVaporSpriteUrl(): string {
 // then keep additive overlap restrained as the wake disperses. alphaCurve is the complete opacity value —
 // ParticleEmitterConfig's alphaStart is ignored whenever a curve is present.
 const CONTRAIL_ALPHA_CURVE = [
-  0, 0, 0.016, 0.038, 0.058, 0.07, 0.077, 0.077, 0.074, 0.067, 0.061, 0.054, 0.048, 0.042, 0.035,
-  0.03, 0.026, 0.022, 0.019, 0.015, 0.013, 0.01, 0.008, 0.006, 0.005, 0.004, 0.003, 0.002, 0.0013,
-  0.0006, 0.0003, 0, 0,
+  0, 0, 0.008, 0.019, 0.029, 0.035, 0.039, 0.039, 0.037, 0.034, 0.031, 0.027, 0.024, 0.021, 0.018,
+  0.015, 0.013, 0.011, 0.0095, 0.0075, 0.0065, 0.005, 0.004, 0.003, 0.0025, 0.002, 0.0015, 0.001,
+  0.0007, 0.0003, 0.00015, 0, 0,
 ];
 
 // White 'normal'-blend vapor. worldSpace: true bakes each puff into world coordinates at spawn, so puffs
@@ -54,8 +54,8 @@ const exhaustConfig: ParticleEmitterConfig = createParticleEmitterConfig({
   worldSpace: true,
   // Keep enough particles for the longest lifetime at this spawn rate, so the far end is not recycled
   // early. At the jet's 220-unit flight speed, 10–13 seconds produces a roughly 2,200–2,860-unit trail.
-  maxParticles: 1_450,
-  spawnRate: 110,
+  maxParticles: 2_900,
+  spawnRate: 220,
   loop: true,
   duration: -1,
   lifetimeMin: 10,
@@ -64,8 +64,8 @@ const exhaustConfig: ParticleEmitterConfig = createParticleEmitterConfig({
   speedMin: 0.5,
   speedMax: 2,
   gravityY: 0.15,
-  scaleMin: 6,
-  scaleMax: 9,
+  scaleMin: 7,
+  scaleMax: 10,
   scaleEnd: 3,
   colorStartR: 1,
   colorStartG: 0.98,
