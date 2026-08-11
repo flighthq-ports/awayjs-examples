@@ -24,7 +24,9 @@ import {
   drawGlScene3DShadowMap,
   endGlRenderEffectPipeline,
   loadImageResourceFromUrl,
+  bakeGlEnvironmentIbl,
   registerGlBlinnPhongMaterial,
+  registerGlStandardPbrMaterial,
   registerGlRenderEffect,
   registerStandardGlTextureResolvers,
   renderGlBackground,
@@ -63,6 +65,8 @@ const state = createGlRenderState(canvas, {
 // texture resolves to null and the scene renders untextured.
 registerStandardGlTextureResolvers(state);
 registerGlBlinnPhongMaterial(state);
+// The floor stays Blinn-Phong; only the knights are PBR, so both material kinds need a runner.
+registerGlStandardPbrMaterial(state);
 registerGlRenderEffect(state, 'FxaaEffect', defaultGlFxaaEffectRunner);
 registerGlRenderEffect(state, 'ToneMapEffect', defaultGlToneMapEffectRunner);
 let pipeline: GlRenderEffectPipeline | null = null;
@@ -113,7 +117,8 @@ const floorGeometry = createPlaneMeshGeometry(5000, 5000, 1, 1);
 const floor = createMesh(floorGeometry, [floorMaterial]);
 addNodeChild(scene.root, floor);
 
-const { animationBuckets } = await loadKnights(scene);
+const { animationBuckets, environment } = await loadKnights(scene);
+bakeGlEnvironmentIbl(state, environment);
 
 const orbit = createOrbitControllerFromAway(camera, {
   distance: 2000,
