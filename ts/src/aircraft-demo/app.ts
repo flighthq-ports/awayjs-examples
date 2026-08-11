@@ -172,6 +172,9 @@ function updateJetTransform(): void {
 // Match the AwayJS demo's document-level input so a harness overlay cannot intercept the configuration
 // toggle before it reaches the canvas. The state flips on mousedown, not on mouseup/click.
 document.addEventListener('mousedown', () => {
+  const configTarget = configClosed ? 1 : 0;
+  if (configProgress !== configTarget) return;
+
   configClosed = !configClosed;
   pulsePhase = 0;
   // Kick the camera the way its vertical bob is already heading: cos is the bob's velocity, so rising
