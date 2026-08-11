@@ -79,8 +79,10 @@ function buildGradientEnvironment(): Environment {
 }
 
 /** Saturation at or below this reads as bare steel; at or above CHROMA_PAINT it reads as paint. */
-const CHROMA_STEEL = 0.10;
-const CHROMA_PAINT = 0.30;
+const CHROMA_STEEL = 0.05;
+const CHROMA_PAINT = 0.15;
+/** Ceiling on metalness. Even bare plate keeps some albedo, so the skin never fully becomes a mirror. */
+const MAX_METALNESS = 0.45;
 const STEEL_ROUGHNESS = 0.32;
 const PAINT_ROUGHNESS = 0.62;
 
@@ -88,10 +90,19 @@ const PAINT_ROUGHNESS = 0.62;
  * Derive where the armour is actually metal, from the skin itself.
  *
  * There is no metalness map in the source, and a single global value is wrong either way: at 0 the
- * plate is dull, at 0.9 the painted face inside the helm dissolves into reflection. But the art already
- * separates them — id painted steel as near-neutral grey and everything that is not steel with colour.
- * Saturation is therefore a usable mask: desaturated texels become metal and take a tight lobe, coloured
- * ones stay dielectric and keep their paint, with a ramp between so the boundary does not alias.
+ * plate is dull, at 0.9 the painted face inside the helm dissolves into reflection. But the art mostly
+ * separates them — id painted steel near-neutral grey and everything else with colour — so saturation
+ * works as a mask. Measured on pknight1: bare plate sits at chroma 0.046, the red cloak at 0.343, the
+ * shield heraldry at 0.245. The threshold belongs well below those, hence 0.05–0.15; an earlier
+ * 0.10–0.30 ramp put the boundary right on top of the face's own 0.324 and pulled half its texels into
+ * metal, which is what made the helm read as a hollow.
+ *
+ * MAX_METALNESS is the honest part. This heuristic cannot be made exact: the face is a dark, low-chroma
+ * brown and the hood around it is genuinely near-neutral, so some of it will always classify as steel.
+ * Capping metalness below 1 means being wrong there costs a little sheen instead of erasing the paint —
+ * at 0.45 the cropped-head chroma is 11.5 against the pre-PBR material's 11.7, i.e. the texture survives
+ * intact, while the plates still catch the environment. Raise it for more shine, and the faces start
+ * dissolving again; that trade is the whole design of this function.
  *
  * glTF packs roughness in G and metallic in B.
  */
@@ -111,7 +122,7 @@ function buildMetalnessMap(skin: Image): Image | null {
     const max = Math.max(r, g, b);
     const chroma = max === 0 ? 0 : (max - Math.min(r, g, b)) / max;
     const paint = Math.max(0, Math.min(1, (chroma - CHROMA_STEEL) / (CHROMA_PAINT - CHROMA_STEEL)));
-    const metal = 1 - paint;
+    const metal = (1 - paint) * MAX_METALNESS;
     data[i] = 0;
     data[i + 1] = Math.round((STEEL_ROUGHNESS + (PAINT_ROUGHNESS - STEEL_ROUGHNESS) * paint) * 255);
     data[i + 2] = Math.round(metal * 255);
