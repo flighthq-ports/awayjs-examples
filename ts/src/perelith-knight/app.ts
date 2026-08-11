@@ -4,7 +4,7 @@ import {
   advanceAnimationPlayer,
   beginGlRenderEffectPipeline,
   configureDirectionalShadowCamera3DTightFit,
-  createBlinnPhongMaterial,
+  createStandardPbrMaterial,
   createCamera3D,
   createFxaaEffect,
   createGlCanvasElement,
@@ -25,7 +25,6 @@ import {
   endGlRenderEffectPipeline,
   loadImageResourceFromUrl,
   bakeGlEnvironmentIbl,
-  registerGlBlinnPhongMaterial,
   registerGlStandardPbrMaterial,
   registerGlRenderEffect,
   registerStandardGlTextureResolvers,
@@ -64,8 +63,6 @@ const state = createGlRenderState(canvas, {
 // Textured materials resolve their maps through the backing-kind registry; without this every
 // texture resolves to null and the scene renders untextured.
 registerStandardGlTextureResolvers(state);
-registerGlBlinnPhongMaterial(state);
-// The floor stays Blinn-Phong; only the knights are PBR, so both material kinds need a runner.
 registerGlStandardPbrMaterial(state);
 registerGlRenderEffect(state, 'FxaaEffect', defaultGlFxaaEffectRunner);
 registerGlRenderEffect(state, 'ToneMapEffect', defaultGlToneMapEffectRunner);
@@ -75,9 +72,12 @@ const scene = createScene3D();
 
 const camera = createCameraFromAway({ fov: 60, far: 5000 });
 
-// This demo shades with BlinnPhongMaterial (classic Lambert, no /π), so the lights skip the Phong→PBR
-// ×π exposure — 'shading: phong' passes the AwayJS intensities through unchanged. Under the default
-// 'pbr' path every surface would render ~π× too bright and blow the floor to flat white.
+// Everything in this scene is now a StandardPbrMaterial, whose diffuse BRDF divides albedo by π, so the
+// lights take the Phong→PBR ×π exposure. This has to move together with the materials: when the knights
+// became PBR while this still read 'phong', they were lit ~π× too dim, their skins crushed toward black
+// and lost saturation, and the whole army took on a dull grey cast. That looks like a material or
+// reflection problem and is not one — no amount of metalness or environment tuning corrects an exposure
+// mismatch. If any material here is ever converted back, this has to change with it.
 //
 // tuning lifts the linear-space result back toward AwayJS's gamma-space look, but it has to leave the
 // floor below the ACES shoulder. The shadow map only attenuates the DIRECTIONAL term, so a floor whose
@@ -88,7 +88,7 @@ const camera = createCameraFromAway({ fov: 60, far: 5000 });
 const { directional, ambient } = createDirectionalLightFromAway({
   direction: awayDirection(-0.5, -1, -1),
   ambient: 0.4,
-  shading: 'phong',
+  shading: 'pbr',
   tuning: { diffuse: 1.7, ambient: 0.8 },
 });
 directional.castsShadow = true;
@@ -101,17 +101,23 @@ const lights = createScene3DLights({ ambient, directional });
 // global exposure cannot serve both: set it to read the armour and the floor clips flat, taking the cast
 // shadows with it. Holding the floor's albedo just below white keeps its lit squares off the ceiling so
 // the knights' shadows still have somewhere to darken into.
-const floorMaterial = createBlinnPhongMaterial({
-  diffuse: 0xf2f2f2ff,
-  specular: 0x000000ff,
-  shininess: 1,
+// PBR like the knights, so one light rig serves both. Mixing kinds is what broke this: the light was
+// still declared shading:'phong' — no ×π exposure — after the knights became PBR materials that divide
+// albedo by π, so they were lit roughly π× too dim and the skins crushed toward black, losing their
+// colour. That reads as a dull grey sheen over everything, and no amount of metalness or environment
+// tuning fixes it, because the problem is exposure rather than material. Specular black and shininess 1
+// on the old Blinn material meant "matte", which is roughness 1 here.
+const floorMaterial = createStandardPbrMaterial({
+  baseColor: 0xf2f2f2ff,
+  metallic: 0,
+  roughness: 1,
 });
 floorMaterial.doubleSided = true;
 
 const floorImage = await loadImageResourceFromUrl('floor_diffuse.jpg');
 const floorTex = createTexture({ source: floorImage, sampler: createTilingSampler() });
 setTextureUvScale(floorTex, 5, 5);
-floorMaterial.diffuseMap = floorTex;
+floorMaterial.baseColorMap = floorTex;
 
 const floorGeometry = createPlaneMeshGeometry(5000, 5000, 1, 1);
 const floor = createMesh(floorGeometry, [floorMaterial]);
