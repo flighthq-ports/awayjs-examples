@@ -81,8 +81,16 @@ function buildGradientEnvironment(): Environment {
 /** Saturation at or below this reads as bare steel; at or above CHROMA_PAINT it reads as paint. */
 const CHROMA_STEEL = 0.05;
 const CHROMA_PAINT = 0.15;
-/** Ceiling on metalness. Even bare plate keeps some albedo, so the skin never fully becomes a mirror. */
-const MAX_METALNESS = 0.45;
+/**
+ * Lit plate sits at value ~0.15 and the black hood at ~0.12, so a floor just between them keeps shadow
+ * and dark cloth dielectric. Without it, 44% of every texel classified as metal was simply dark — the
+ * hood around the face, and painted shading inside every crease — which is what made the whole model
+ * read as metallic rather than the plates reading as metal.
+ */
+const VALUE_FLOOR = 0.13;
+const VALUE_RAMP = 0.06;
+/** Ceiling on metalness. Can sit high now that the mask actually isolates plate from cloth and skin. */
+const MAX_METALNESS = 0.85;
 const STEEL_ROUGHNESS = 0.32;
 const PAINT_ROUGHNESS = 0.62;
 
@@ -97,12 +105,15 @@ const PAINT_ROUGHNESS = 0.62;
  * 0.10–0.30 ramp put the boundary right on top of the face's own 0.324 and pulled half its texels into
  * metal, which is what made the helm read as a hollow.
  *
- * MAX_METALNESS is the honest part. This heuristic cannot be made exact: the face is a dark, low-chroma
- * brown and the hood around it is genuinely near-neutral, so some of it will always classify as steel.
- * Capping metalness below 1 means being wrong there costs a little sheen instead of erasing the paint —
- * at 0.45 the cropped-head chroma is 11.5 against the pre-PBR material's 11.7, i.e. the texture survives
- * intact, while the plates still catch the environment. Raise it for more shine, and the faces start
- * dissolving again; that trade is the whole design of this function.
+ * Chroma alone is not enough, though, and the second term matters more than the first. Three quarters of
+ * the skin came out metal on chroma alone, and 44% of that was simply dark — the hood, and the painted
+ * shading inside every crease and fold. Requiring the texel to be lit as well drops metal coverage from
+ * 53% to 27%, and that 27% is the plates: masked and viewed, the individual armour pieces show up as
+ * solid shapes while the face, the cloak and the heraldry go to black.
+ *
+ * It still is not exact — nothing derived from a 256px painted skin will be — but the failures are now
+ * small and dark rather than broad, which is why MAX_METALNESS can sit high. Lower it if a particular
+ * skin shows sheen where it should not; that is the dial, and it is cheaper than chasing the thresholds.
  *
  * glTF packs roughness in G and metallic in B.
  */
@@ -122,9 +133,11 @@ function buildMetalnessMap(skin: Image): Image | null {
     const max = Math.max(r, g, b);
     const chroma = max === 0 ? 0 : (max - Math.min(r, g, b)) / max;
     const paint = Math.max(0, Math.min(1, (chroma - CHROMA_STEEL) / (CHROMA_PAINT - CHROMA_STEEL)));
-    const metal = (1 - paint) * MAX_METALNESS;
+    const lit = Math.max(0, Math.min(1, (max / 255 - VALUE_FLOOR) / VALUE_RAMP));
+    const metal = (1 - paint) * lit * MAX_METALNESS;
     data[i] = 0;
-    data[i + 1] = Math.round((STEEL_ROUGHNESS + (PAINT_ROUGHNESS - STEEL_ROUGHNESS) * paint) * 255);
+    const dielectric = 1 - (1 - paint) * lit;
+    data[i + 1] = Math.round((STEEL_ROUGHNESS + (PAINT_ROUGHNESS - STEEL_ROUGHNESS) * dielectric) * 255);
     data[i + 2] = Math.round(metal * 255);
     data[i + 3] = 255;
   }
