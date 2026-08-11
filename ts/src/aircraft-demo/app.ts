@@ -8,7 +8,7 @@ import {
   addNodeChild,
   advanceClock,
   copyVector3,
-  createBloomEffect,
+  // createBloomEffect,
   createClock,
   createFxaaEffect,
   createMatrix4,
@@ -148,7 +148,7 @@ function sweepWing(meshes: readonly Mesh[], pivot: Vector3, angle: number): void
 
 const skyboxRef: SkyboxRenderState = { pipeline: null };
 const aircraftEffects = [
-  createBloomEffect({ threshold: 1, intensity: 1.1, radius: 12, passes: 2 }),
+  // createBloomEffect({ threshold: 1, intensity: 1.1, radius: 12, passes: 2 }),
   createToneMapEffect(),
   createFxaaEffect(),
 ];

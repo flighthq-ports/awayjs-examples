@@ -97,6 +97,7 @@ export async function createVaporTrail(_scene: Scene3D): Promise<VaporTrail> {
     // Offset out to the engine and back a bit forward of the nozzle exit (deeper in the model, so the
     // trail emerges from within the fuselage).
     const emitter = createParticleEmitter3D();
+    emitter.blendMode = 'add';
     emitter.data.atlas = vaporAtlas;
     const state = createParticleEmitterState();
     setVector3(emitter.position, x, y, z);
