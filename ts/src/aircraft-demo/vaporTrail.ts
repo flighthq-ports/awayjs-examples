@@ -37,11 +37,15 @@ function createSoftVaporSpriteUrl(): string {
   return c.toDataURL('image/png');
 }
 
-// Alpha look-up table over 0→1 lifetime (uniform samples, linearly interpolated): fades in fast just aft
-// of the nozzle, plateaus, then slowly diffuses out. The faint start also keeps the youngest puffs from
-// hazing the jet when the camera looks down the trail. No scale curve — young puffs need to be big enough
-// to overlap into a line (a thin start reads as discrete dots at the spawn spacing).
-const CONTRAIL_ALPHA_CURVE = [0, 0.55, 0.6, 0.48, 0.32, 0.18, 0.08, 0];
+// Alpha look-up table over 0→1 lifetime (uniform samples, linearly interpolated). The dense samples near
+// zero leave the hot exhaust effectively invisible for roughly 0.2–0.3 seconds before condensation forms,
+// then keep additive overlap restrained as the wake disperses. alphaCurve is the complete opacity value —
+// ParticleEmitterConfig's alphaStart is ignored whenever a curve is present.
+const CONTRAIL_ALPHA_CURVE = [
+  0, 0, 0.025, 0.06, 0.09, 0.11, 0.12, 0.12, 0.115, 0.105, 0.095, 0.085, 0.075, 0.065, 0.055, 0.047,
+  0.04, 0.034, 0.029, 0.024, 0.02, 0.016, 0.013, 0.01, 0.008, 0.006, 0.0045, 0.003, 0.002, 0.001,
+  0.0005, 0, 0,
+];
 
 // White 'normal'-blend vapor. worldSpace: true bakes each puff into world coordinates at spawn, so puffs
 // hang in the air while the jet flies away from them — a genuine contrail rather than a fake. They barely
@@ -49,20 +53,20 @@ const CONTRAIL_ALPHA_CURVE = [0, 0.55, 0.6, 0.48, 0.32, 0.18, 0.08, 0];
 const exhaustConfig: ParticleEmitterConfig = createParticleEmitterConfig({
   worldSpace: true,
   // Keep enough particles for the longest lifetime at this spawn rate, so the far end is not recycled
-  // early. At the jet's 220-unit flight speed, 12–15 seconds produces a roughly 2,640–3,300-unit trail.
-  maxParticles: 1_400,
-  spawnRate: 90,
+  // early. At the jet's 220-unit flight speed, 10–13 seconds produces a roughly 2,200–2,860-unit trail.
+  maxParticles: 950,
+  spawnRate: 70,
   loop: true,
   duration: -1,
-  lifetimeMin: 12,
-  lifetimeMax: 15,
+  lifetimeMin: 10,
+  lifetimeMax: 13,
   emitterShape: 'point',
-  speedMin: 0,
-  speedMax: 3,
-  gravityY: 2,
-  scaleMin: 10,
-  scaleMax: 14,
-  scaleEnd: 6,
+  speedMin: 0.5,
+  speedMax: 2,
+  gravityY: 0.15,
+  scaleMin: 5,
+  scaleMax: 8,
+  scaleEnd: 3,
   colorStartR: 1,
   colorStartG: 0.98,
   colorStartB: 0.96,
@@ -70,7 +74,6 @@ const exhaustConfig: ParticleEmitterConfig = createParticleEmitterConfig({
   colorEndG: 0.98,
   colorEndB: 0.96,
   alphaCurve: CONTRAIL_ALPHA_CURVE,
-  alphaStart: 0.65,
 });
 
 interface VaporEmitter {
