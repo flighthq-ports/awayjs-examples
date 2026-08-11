@@ -1,4 +1,4 @@
-import type { AnimationPlayer, AnimationTrack, Environment, Mesh, Scene3D, StandardPbrMaterial } from '@flighthq/sdk';
+import type { AnimationPlayer, AnimationTrack, Environment, Image, Mesh, Scene3D, StandardPbrMaterial } from '@flighthq/sdk';
 
 import {
   addNodeChild,
@@ -78,15 +78,59 @@ function buildGradientEnvironment(): Environment {
   return createEnvironment({ environment: cube, intensity: 1 });
 }
 
+/** Saturation at or below this reads as bare steel; at or above CHROMA_PAINT it reads as paint. */
+const CHROMA_STEEL = 0.10;
+const CHROMA_PAINT = 0.30;
+const STEEL_ROUGHNESS = 0.32;
+const PAINT_ROUGHNESS = 0.62;
+
+/**
+ * Derive where the armour is actually metal, from the skin itself.
+ *
+ * There is no metalness map in the source, and a single global value is wrong either way: at 0 the
+ * plate is dull, at 0.9 the painted face inside the helm dissolves into reflection. But the art already
+ * separates them — id painted steel as near-neutral grey and everything that is not steel with colour.
+ * Saturation is therefore a usable mask: desaturated texels become metal and take a tight lobe, coloured
+ * ones stay dielectric and keep their paint, with a ramp between so the boundary does not alias.
+ *
+ * glTF packs roughness in G and metallic in B.
+ */
+function buildMetalnessMap(skin: Image): Image | null {
+  const source = skin.source;
+  if (!source) return null;
+  const canvas = document.createElement('canvas');
+  canvas.width = skin.width;
+  canvas.height = skin.height;
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  if (!ctx) return null;
+  ctx.drawImage(source, 0, 0, canvas.width, canvas.height);
+  const frame = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const data = frame.data;
+  for (let i = 0; i < data.length; i += 4) {
+    const r = data[i]!, g = data[i + 1]!, b = data[i + 2]!;
+    const max = Math.max(r, g, b);
+    const chroma = max === 0 ? 0 : (max - Math.min(r, g, b)) / max;
+    const paint = Math.max(0, Math.min(1, (chroma - CHROMA_STEEL) / (CHROMA_PAINT - CHROMA_STEEL)));
+    const metal = 1 - paint;
+    data[i] = 0;
+    data[i + 1] = Math.round((STEEL_ROUGHNESS + (PAINT_ROUGHNESS - STEEL_ROUGHNESS) * paint) * 255);
+    data[i + 2] = Math.round(metal * 255);
+    data[i + 3] = 255;
+  }
+  ctx.putImageData(frame, 0, 0);
+  return createImageResourceFromCanvas(canvas);
+}
+
 export async function loadKnights(scene: Readonly<Scene3D>): Promise<KnightsResult> {
   const environment = buildGradientEnvironment();
   const knightMaterials: StandardPbrMaterial[] = [];
   for (let i = 0; i < 4; i++) {
-    // Metallic rather than Blinn-Phong, so the skins act as reflectance rather than as paint: the steel
-    // plates mirror the gradient above and the shields keep their copper. Held just under fully metallic
-    // because these maps are not pure armour — they carry cloth, leather and painted heraldry too, and at
-    // 1.0 those lose their diffuse entirely and read as foil.
-    const material = createStandardPbrMaterial({ baseColor: 0xffffffff, metallic: 0.9, roughness: 0.3 });
+    // Both factors are 1 so the per-skin map below owns metalness and roughness. A single global metallic
+    // value cannot work here: these skins are painted art, not reflectance maps — one texture carries
+    // steel plate, cloth, heraldry and the knight's own face. Turn the whole material metallic and the
+    // paint stops being albedo and becomes reflection tint, so the face inside the helm dissolves into
+    // sheen and the opening reads as a hollow rather than a head.
+    const material = createStandardPbrMaterial({ baseColor: 0xffffffff, metallic: 1, roughness: 1 });
     knightMaterials.push(material);
   }
 
@@ -103,6 +147,8 @@ export async function loadKnights(scene: Readonly<Scene3D>): Promise<KnightsResu
     // texels ~50× lower, and no amount of ambient recovers them (they are near-zero albedo, so ambient
     // scales them by ~nothing). That is what left the knights reading as black silhouettes.
     knightMaterials[i]!.baseColorMap = createTexture({ source: knightImages[i]!, colorSpace: 'linear' });
+    const metalness = buildMetalnessMap(knightImages[i]!);
+    knightMaterials[i]!.metallicRoughnessMap = metalness ? createTexture({ source: metalness, colorSpace: 'linear' }) : null;
   }
 
   const md2Buffer = await fetch('pknight.md2').then((r) => r.arrayBuffer());
