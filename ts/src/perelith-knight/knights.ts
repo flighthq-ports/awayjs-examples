@@ -131,6 +131,7 @@ export async function loadKnights(scene: Readonly<Scene3D>): Promise<KnightsResu
     // paint stops being albedo and becomes reflection tint, so the face inside the helm dissolves into
     // sheen and the opening reads as a hollow rather than a head.
     const material = createStandardPbrMaterial({ baseColor: 0xffffffff, metallic: 1, roughness: 1 });
+    material.doubleSided = true;
     knightMaterials.push(material);
   }
 
