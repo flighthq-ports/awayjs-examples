@@ -37,7 +37,10 @@ function injectBase(sitePath: string): Plugin {
         // the rewrite matches nothing and is a no-op.
         const dir = sitePath + ctx.path.replace(/^\//, '').replace(/index\.html$/, '');
         const anchored = html.replace(/src="\.\/([^"]+)"/g, `src="${dir}$1"`);
-        return anchored.replace('<head>', `<head>\n    <base href="${sitePath}" />`);
+        return anchored.replace(
+          '<head>',
+          `<head>\n    <base href="${sitePath}" />\n    <link rel="icon" href="favicon.svg" type="image/svg+xml" />`,
+        );
       },
     },
   };
