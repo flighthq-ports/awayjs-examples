@@ -94,7 +94,7 @@ const camera = createCameraFromAway({ fov: 60, far: 5000 });
 // walk cycle still moves in place, so everything downstream of it is unchanged.
 const cameraTarget = createVector3(0, 92, 0);
 const up = createVector3(0, 1, 0);
-const eye = createVector3(...awayPosition(0, 78, -145));
+const eye = createVector3(...awayPosition(0, 78, -210));
 
 function updateCamera(): void {
   // Fixed camera: the MD5 walk cycle moves in place, and turning the character does not orbit it.
