@@ -26,7 +26,11 @@ const srcDir = join(tsDir, 'src');
 const outDir = join(srcDir, 'thumbs');
 
 const PORT = Number(process.env.THUMB_PORT ?? 5399);
-const WIDTH = Number(process.env.THUMB_WIDTH ?? 480);
+// Match the gallery card's 4:3 aspect ratio. The old 480x720 portrait capture was displayed with
+// background-size: cover inside a 4:3 card, which discarded roughly half its height and routinely
+// cut off heads, feet, wings, and tails.
+const WIDTH = Number(process.env.THUMB_WIDTH ?? 640);
+const HEIGHT = Number(process.env.THUMB_HEIGHT ?? 480);
 /** Time to let a example load assets and reach a representative frame. */
 const SETTLE = Number(process.env.THUMB_SETTLE ?? 700);
 /** Heavy scenes under software GL can take a while to produce a stable frame to grab. */
@@ -127,7 +131,7 @@ try {
     console.error('  npx playwright install chromium\n');
     process.exit(1);
   }
-  const page = await browser.newPage({ viewport: { width: WIDTH, height: 720 } });
+  const page = await browser.newPage({ viewport: { width: WIDTH, height: HEIGHT } });
 
   let ok = 0;
   for (const id of examples) {
