@@ -195,3 +195,4 @@ export function updateParticleCloud(cloud: ParticleCloud, paths: ParticlePath[],
     positionsZ[i] = path.startZ + curveWeight * path.controlZ + endWeight * path.endZ;
   }
 }
+
