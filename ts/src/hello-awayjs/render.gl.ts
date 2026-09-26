@@ -19,7 +19,6 @@ import { createExampleGlSurface } from '../../shared/glSurface';
 
 function createMinimalScene3DGlRegistries(): GlRenderStateOptions {
   return {
-    canvas,
     materialRenderers: new Map([[UnlitMaterialKind, glUnlitMeshMaterialRenderer]]),
     textureResolvers: standardGlTextureResolvers,
   };
@@ -43,6 +42,7 @@ export function setupRenderer() {
   let effectState: GlEffectState | null = null;
 
   return {
+    canvas,
     render(scene: Readonly<Node3D>, camera: Readonly<Camera3D>): void {
       effectState ??= createGlEffectState(state, { format: 'rgba16f', depth: 'depth-stencil' });
       const pass = beginGlEffectPass(state, effectState, clear, 'linear');
