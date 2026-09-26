@@ -1,22 +1,19 @@
 import type {
   BlinnPhongMaterial,
-  Material,
+  Material3D,
   Mesh,
-  PerspectiveProjection,
   Scene3DHit,
 } from '@flighthq/sdk';
 import {
   addNodeChild,
   appendMatrix4,
   createBlinnPhongMaterial,
-  createFxaaEffect,
   createMatrix4,
   createMesh,
   createScene3D,
   createScene3DFromAwd2,
   createScene3DHit,
   createScene3DLights,
-  createToneMapEffect,
   createVector3,
   DEG_TO_RAD,
   findNode,
@@ -31,15 +28,12 @@ import {
   setNodeLocalMatrix4,
   translateMatrix4,
 } from '@flighthq/sdk';
+import { parserOptions } from '../../../assets/suzanne.awd?manifest';
 import { awayDirection, createCameraFromAway, setAwayPosition } from '../../shared/camera';
 import { applyAwayGloss, createDirectionalLightFromAway } from '../../shared/lighting';
-import { createScene3DContext } from './renderer';
+import { setupRenderer } from './render.gl';
 
-const ctx = createScene3DContext({
-  width: window.innerWidth,
-  height: window.innerHeight,
-  effects: [createToneMapEffect(), createFxaaEffect()],
-});
+const renderer = setupRenderer();
 
 const scene = createScene3D();
 
@@ -68,13 +62,13 @@ const { directional, ambient } = createDirectionalLightFromAway({
 });
 const lights = createScene3DLights({ ambient, directional });
 
-const hoverMaterial: Material = createBlinnPhongMaterial({
+const hoverMaterial: Material3D = createBlinnPhongMaterial({
   diffuse: 0xff0000ff,
   specular: 0x000000ff,
 });
 
 const buffer = await fetch('suzanne.awd').then((r) => r.arrayBuffer());
-const modelScene = createScene3DFromAwd2(new Uint8Array(buffer));
+const modelScene = createScene3DFromAwd2(new Uint8Array(buffer), parserOptions);
 
 const templateMesh = findNode(modelScene.root, isMesh) as Mesh | null;
 if (!templateMesh?.geometry) throw new Error('No mesh found in suzanne.awd');
@@ -136,8 +130,8 @@ function updateCamera(): void {
 let lastHovered: Mesh | null = null;
 const hit: Scene3DHit = createScene3DHit();
 
-ctx.canvas.addEventListener('mousemove', (e: MouseEvent) => {
-  const rect = ctx.canvas.getBoundingClientRect();
+renderer.canvas.addEventListener('mousemove', (e: MouseEvent) => {
+  const rect = renderer.canvas.getBoundingClientRect();
   // pickScene3D expects normalized device coordinates in [-1, 1], not pixels; the Y axis flips (screen
   // Y grows down, NDC Y grows up). Using rect dimensions keeps this correct under devicePixelRatio.
   const ndcX = ((e.clientX - rect.left) / rect.width) * 2 - 1;
@@ -166,20 +160,11 @@ function frame(): void {
   // camera toward the model, so the face the viewer sees is always the lit side.
   setDirectionalLightTarget(directional, eye.x, eye.y, eye.z, lookAt.x, lookAt.y, lookAt.z);
 
-  ctx.render(scene.root, camera, lights);
+  renderer.render(scene.root, camera, lights);
   requestAnimationFrame(frame);
 }
 
-window.addEventListener('resize', () => {
-  const w = window.innerWidth;
-  const h = window.innerHeight;
-  const pr = window.devicePixelRatio || 1;
-  ctx.canvas.width = w * pr;
-  ctx.canvas.height = h * pr;
-  ctx.canvas.style.width = `${w}px`;
-  ctx.canvas.style.height = `${h}px`;
-  ctx.state.gl.viewport(0, 0, ctx.canvas.width, ctx.canvas.height);
-  (camera.projection as PerspectiveProjection).aspect = w / h;
-});
+renderer.resize(camera);
+window.addEventListener('resize', () => renderer.resize(camera));
 
 requestAnimationFrame(frame);
