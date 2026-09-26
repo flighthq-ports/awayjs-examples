@@ -1,16 +1,11 @@
-import type { GlRenderEffectPipeline, Mesh, PerspectiveProjection } from '@flighthq/sdk';
+import type { Mesh } from '@flighthq/sdk';
 import {
   addNodeChild,
-  beginGlRenderEffectPipeline,
   computeMeshGeometryNormals,
   configureDirectionalShadowCamera3D,
   createAabb,
   createCamera3D,
   createExtendedPbrMaterial,
-  createFxaaEffect,
-  createGlCanvasElement,
-  createGlRenderEffectPipeline,
-  createGlRenderState,
   createMesh,
   createOrthographicProjection,
   createPlaneMeshGeometry,
@@ -20,24 +15,14 @@ import {
   createScene3DLights,
   createSpecularPbrExtension,
   createTexture,
-  createToneMapEffect,
-  defaultGlFxaaEffectRunner,
-  defaultGlToneMapEffectRunner,
-  drawGlScene3D,
-  drawGlScene3DShadowMap,
-  endGlRenderEffectPipeline,
   getNodeChildren,
   loadImageResourceFromUrl,
-  registerGlExtendedPbrMaterial,
-  registerGlRenderEffect,
-  registerGlSpecularPbrExtension,
-  registerStandardGlTextureResolvers,
-  registerGlStandardPbrMaterial,
-  renderGlBackground,
   setDirectionalLightDirection,
   invalidateNodeLocalTransform,
   setVector3,
 } from '@flighthq/sdk';
+import { webHostImage } from '@flighthq/host-web';
+
 
 import {
   awayDirection,
@@ -46,37 +31,10 @@ import {
   createOrbitControllerFromAway,
 } from '../../shared/camera';
 import { createDirectionalLightFromAway } from '../../shared/lighting';
+import { setupRenderer } from './render.gl';
 import { createAwayMatteMaterial } from '../../shared/materials';
 
-const pixelRatio = window.devicePixelRatio || 1;
-
-const mount = document.getElementById('app');
-const canvas = createGlCanvasElement(window.innerWidth, window.innerHeight, pixelRatio);
-if (mount) {
-  mount.replaceWith(canvas);
-} else {
-  document.body.appendChild(canvas);
-}
-document.body.style.margin = '0';
-
-const state = createGlRenderState(canvas, {
-  backgroundColor: 0x000000ff,
-  contextAttributes: { alpha: false, depth: true, preserveDrawingBuffer: false },
-  pixelRatio,
-});
-
-// Textured materials resolve their maps through the backing-kind registry; without this every
-// texture resolves to null and the scene renders untextured.
-registerStandardGlTextureResolvers(state);
-registerGlStandardPbrMaterial(state);
-registerGlExtendedPbrMaterial(state);
-registerGlSpecularPbrExtension(state);
-registerGlRenderEffect(state, 'FxaaEffect', defaultGlFxaaEffectRunner);
-registerGlRenderEffect(state, 'ToneMapEffect', defaultGlToneMapEffectRunner);
-// The ground is HDR-lit and clips to flat white when it fills the view; ACES tone mapping
-// compresses the highlights back into range, matching the LDR AwayJS original.
-const effects = [createToneMapEffect({ operator: 'aces' }), createFxaaEffect()];
-let pipeline: GlRenderEffectPipeline | null = null;
+const renderer = setupRenderer();
 
 const scene = createScene3D();
 
@@ -121,8 +79,8 @@ addNodeChild(scene.root, ground);
 
 const [modelBuffer, antImage, sandImage] = await Promise.all([
   fetch('soldier_ant.3ds').then((r) => r.arrayBuffer()),
-  loadImageResourceFromUrl('soldier_ant.jpg'),
-  loadImageResourceFromUrl('CoarseRedSand.jpg'),
+  loadImageResourceFromUrl(webHostImage, 'soldier_ant.jpg'),
+  loadImageResourceFromUrl(webHostImage, 'CoarseRedSand.jpg'),
 ]);
 
 groundMaterial.standard.baseColorMap = createTexture({ source: sandImage });
@@ -167,7 +125,7 @@ const orbit = createOrbitControllerFromAway(camera, {
   maxTiltAngle: 90,
 });
 
-bindOrbitDrag(canvas, orbit);
+bindOrbitDrag(renderer.canvas, orbit);
 
 let startTime = 0;
 
@@ -182,34 +140,13 @@ function frame(ts: number): void {
 
   // Shadow depth pass from the light's view, before the lit scene draw samples it.
   configureDirectionalShadowCamera3D(shadowCamera, dir, shadowBounds);
-  drawGlScene3DShadowMap(state, scene.root, shadowCamera, directional);
-
-  // Effect-pipeline present: draw the scene into the pipeline's HDR target (clearing background and
-  // depth as a direct present would), then run the post-process stack (ACES tone map) to the canvas.
-  if (pipeline === null) {
-    pipeline = createGlRenderEffectPipeline(state, { format: 'rgba16f', depth: 'depth-stencil' });
-  }
-  beginGlRenderEffectPipeline(state, pipeline);
-  renderGlBackground(state);
-  const gl = state.gl;
-  gl.depthMask(true);
-  gl.clearDepth(1);
-  gl.clear(gl.DEPTH_BUFFER_BIT);
-  drawGlScene3D(state, scene.root, camera, lights);
-  endGlRenderEffectPipeline(state, pipeline, effects);
+  renderer.renderShadowMap(scene.root, shadowCamera, directional);
+  renderer.render(scene.root, camera, lights);
   requestAnimationFrame(frame);
 }
 
-window.addEventListener('resize', () => {
-  const w = window.innerWidth;
-  const h = window.innerHeight;
-  const pixelRatio = window.devicePixelRatio || 1;
-  canvas.width = w * pixelRatio;
-  canvas.height = h * pixelRatio;
-  canvas.style.width = `${w}px`;
-  canvas.style.height = `${h}px`;
-  state.gl.viewport(0, 0, canvas.width, canvas.height);
-  (camera.projection as PerspectiveProjection).aspect = w / h;
-});
+renderer.resize(camera);
+window.addEventListener('resize', () => renderer.resize(camera));
 
 requestAnimationFrame(frame);
+
