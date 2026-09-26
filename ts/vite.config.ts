@@ -3,6 +3,8 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { defineConfig, type Plugin } from 'vite';
 
+import { createFlightManifestPlugin } from './scripts/manifestPlugin';
+
 const here = dirname(fileURLToPath(import.meta.url));
 const srcDir = resolve(here, 'src');
 const assetsDir = resolve(here, '../assets');
@@ -96,7 +98,7 @@ export default defineConfig(() => {
     // directory layout should not show up in the URL a visitor sees.
     root: srcDir,
     base: sitePath,
-    plugins: [injectBase(sitePath), copyThumbs(), copySizes()],
+    plugins: [createFlightManifestPlugin(), injectBase(sitePath), copyThumbs(), copySizes()],
     publicDir,
     build: { target: 'es2022', outDir, emptyOutDir: true, rollupOptions: { input } },
   };
