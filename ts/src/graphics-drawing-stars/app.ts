@@ -1,4 +1,5 @@
 import type { Shape } from '@flighthq/sdk';
+import { webHostInputIngress } from '@flighthq/host-web';
 import {
   addNodeChild,
   appendShapeBeginFill,
@@ -72,8 +73,8 @@ function drawStar(star: Shape, radiusOuter: number): void {
 }
 
 const input = createInputManager();
-attachPointerInput(input, canvas);
-attachKeyboardInput(input, window);
+attachPointerInput(webHostInputIngress, input, canvas);
+attachKeyboardInput(webHostInputIngress, input, window);
 
 connectSignal(input.onPointerDown, (data) => {
   startX = data.x;
