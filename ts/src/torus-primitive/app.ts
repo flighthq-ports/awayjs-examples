@@ -1,16 +1,12 @@
-import type {
-  PerspectiveProjection,
-} from '@flighthq/sdk';
+import { webHostImage } from '@flighthq/host-web';
 import {
   addNodeChild,
   copyQuaternion,
-  createFxaaEffect,
   createMesh,
   createQuaternion,
   createScene3D,
   createScene3DLights,
   createTexture,
-  createToneMapEffect,
   createTorusMeshGeometry,
   createVector3,
   invalidateNodeLocalTransform,
@@ -21,15 +17,11 @@ import {
 import { awayDirection, createCameraFromAway } from '../../shared/camera';
 import { createDirectionalLightFromAway } from '../../shared/lighting';
 import { createAwayMatteMaterial } from '../../shared/materials';
-import { createScene3DContext } from './renderer';
+import { setupRenderer } from './render.gl';
 
 const DEG = Math.PI / 180;
 
-const ctx = createScene3DContext({
-  width: window.innerWidth,
-  height: window.innerHeight,
-  effects: [createToneMapEffect({ operator: 'aces' }), createFxaaEffect()],
-});
+const renderer = setupRenderer();
 
 const scene = createScene3D();
 
@@ -45,7 +37,7 @@ const { directional, ambient } = createDirectionalLightFromAway({
 
 const lights = createScene3DLights({ ambient, directional });
 
-const image = await loadImageResourceFromUrl('dots.png');
+const image = await loadImageResourceFromUrl(webHostImage, 'dots.png');
 // Flight builds the torus in its native right-handed space while the camera helper mirrors z
 // (left-handed AwayJS -> right-handed Flight). The unmirrored mesh renders as the z-reflection of the
 // original, flipping the texture along the tube (v) axis; mirror v back to match the AwayJS look.
@@ -74,20 +66,11 @@ function frame(): void {
   copyQuaternion(torus.rotation, scratchQuat);
   invalidateNodeLocalTransform(torus);
 
-  ctx.render(scene.root, camera, lights);
+  renderer.render(scene.root, camera, lights);
   requestAnimationFrame(frame);
 }
 
-window.addEventListener('resize', () => {
-  const width = window.innerWidth;
-  const height = window.innerHeight;
-  const pixelRatio = window.devicePixelRatio || 1;
-  ctx.canvas.width = width * pixelRatio;
-  ctx.canvas.height = height * pixelRatio;
-  ctx.canvas.style.width = `${width}px`;
-  ctx.canvas.style.height = `${height}px`;
-  ctx.state.gl.viewport(0, 0, ctx.canvas.width, ctx.canvas.height);
-  (camera.projection as PerspectiveProjection).aspect = width / height;
-});
+renderer.resize(camera);
+window.addEventListener('resize', () => renderer.resize(camera));
 
-frame();
+requestAnimationFrame(frame);
