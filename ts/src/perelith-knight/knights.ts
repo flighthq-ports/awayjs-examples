@@ -1,4 +1,5 @@
-import type { AnimationPlayer, AnimationTrack, Environment, Image, Mesh, Scene3D, StandardPbrMaterial } from '@flighthq/sdk';
+import { createWebImageResourceFromCanvas } from '@flighthq/host-web';
+import type { AnimationPlayer, AnimationTrack, Environment, HostImageCapability, ImageResource, Mesh, Scene3D, StandardPbrMaterial } from '@flighthq/sdk';
 
 import {
   addNodeChild,
@@ -6,7 +7,6 @@ import {
   createAnimationPlayer,
   createCubeTexture,
   createEnvironment,
-  createImageResourceFromCanvas,
   createMesh,
   createScene3DFromMd2,
   createStandardPbrMaterial,
@@ -71,7 +71,7 @@ function buildGradientEnvironment(): Environment {
       ctx.fillStyle = gradient;
     }
     ctx.fillRect(0, 0, SIZE, SIZE);
-    faces.push(createImageResourceFromCanvas(canvas));
+    faces.push(createWebImageResourceFromCanvas(canvas));
   }
   const cube = createCubeTexture();
   for (let face = 0; face < faces.length; face++) setCubeTextureFace(cube, face, faces[face]!);
@@ -117,7 +117,7 @@ const PAINT_ROUGHNESS = 0.62;
  *
  * glTF packs roughness in G and metallic in B.
  */
-function buildMetalnessMap(skin: Image): Image | null {
+function buildMetalnessMap(skin: ImageResource): ImageResource | null {
   const source = skin.source;
   if (!source) return null;
   const canvas = document.createElement('canvas');
@@ -142,10 +142,10 @@ function buildMetalnessMap(skin: Image): Image | null {
     data[i + 3] = 255;
   }
   ctx.putImageData(frame, 0, 0);
-  return createImageResourceFromCanvas(canvas);
+  return createWebImageResourceFromCanvas(canvas);
 }
 
-export async function loadKnights(scene: Readonly<Scene3D>): Promise<KnightsResult> {
+export async function loadKnights(host: Readonly<HostImageCapability>, scene: Readonly<Scene3D>): Promise<KnightsResult> {
   const environment = buildGradientEnvironment();
   const knightMaterials: StandardPbrMaterial[] = [];
   for (let i = 0; i < 4; i++) {
@@ -160,10 +160,10 @@ export async function loadKnights(scene: Readonly<Scene3D>): Promise<KnightsResu
   }
 
   const knightImages = await Promise.all([
-    loadImageResourceFromUrl('pknight1.png'),
-    loadImageResourceFromUrl('pknight2.png'),
-    loadImageResourceFromUrl('pknight3.png'),
-    loadImageResourceFromUrl('pknight4.png'),
+    loadImageResourceFromUrl(host, 'pknight1.png'),
+    loadImageResourceFromUrl(host, 'pknight2.png'),
+    loadImageResourceFromUrl(host, 'pknight3.png'),
+    loadImageResourceFromUrl(host, 'pknight4.png'),
   ]);
 
   for (let i = 0; i < 4; i++) {
@@ -252,3 +252,4 @@ export async function loadKnights(scene: Readonly<Scene3D>): Promise<KnightsResu
 
   return { animationBuckets, knightMaterials, environment };
 }
+

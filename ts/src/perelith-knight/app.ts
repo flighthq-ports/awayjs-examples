@@ -1,15 +1,9 @@
-import type { GlRenderEffectPipeline, PerspectiveProjection } from '@flighthq/sdk';
 import {
   addNodeChild,
   advanceAnimationPlayer,
-  beginGlRenderEffectPipeline,
   configureDirectionalShadowCamera3DTightFit,
   createStandardPbrMaterial,
   createCamera3D,
-  createFxaaEffect,
-  createGlCanvasElement,
-  createGlRenderEffectPipeline,
-  createGlRenderState,
   createMesh,
   createOrthographicProjection,
   createPlaneMeshGeometry,
@@ -17,22 +11,14 @@ import {
   createScene3DLights,
   createTexture,
   createTilingSampler,
-  createToneMapEffect,
-  defaultGlFxaaEffectRunner,
-  defaultGlToneMapEffectRunner,
-  drawGlScene3D,
-  drawGlScene3DShadowMap,
-  endGlRenderEffectPipeline,
   loadImageResourceFromUrl,
   bakeGlEnvironmentIbl,
-  registerGlStandardPbrMaterial,
-  registerGlRenderEffect,
-  registerStandardGlTextureResolvers,
-  renderGlBackground,
   sampleAnimationTrack,
   setTextureUvScale,
   updateMeshMorph,
 } from '@flighthq/sdk';
+import { webHostImage } from '@flighthq/host-web';
+
 
 import {
   awayDirection,
@@ -42,31 +28,9 @@ import {
 } from '../../shared/camera';
 import { createDirectionalLightFromAway } from '../../shared/lighting';
 import { loadKnights } from './knights';
+import { setupRenderer } from './render.gl';
 
-const pixelRatio = window.devicePixelRatio || 1;
-
-const mount = document.getElementById('app');
-const canvas = createGlCanvasElement(window.innerWidth, window.innerHeight, pixelRatio);
-if (mount) {
-  mount.replaceWith(canvas);
-} else {
-  document.body.appendChild(canvas);
-}
-document.body.style.margin = '0';
-
-const state = createGlRenderState(canvas, {
-  backgroundColor: 0x000000ff,
-  contextAttributes: { alpha: false, depth: true, preserveDrawingBuffer: false },
-  pixelRatio,
-});
-
-// Textured materials resolve their maps through the backing-kind registry; without this every
-// texture resolves to null and the scene renders untextured.
-registerStandardGlTextureResolvers(state);
-registerGlStandardPbrMaterial(state);
-registerGlRenderEffect(state, 'FxaaEffect', defaultGlFxaaEffectRunner);
-registerGlRenderEffect(state, 'ToneMapEffect', defaultGlToneMapEffectRunner);
-let pipeline: GlRenderEffectPipeline | null = null;
+const renderer = setupRenderer();
 
 const scene = createScene3D();
 
@@ -114,7 +78,7 @@ const floorMaterial = createStandardPbrMaterial({
 });
 floorMaterial.doubleSided = true;
 
-const floorImage = await loadImageResourceFromUrl('floor_diffuse.jpg');
+const floorImage = await loadImageResourceFromUrl(webHostImage, 'floor_diffuse.jpg');
 const floorTex = createTexture({ source: floorImage, sampler: createTilingSampler() });
 setTextureUvScale(floorTex, 5, 5);
 floorMaterial.baseColorMap = floorTex;
@@ -123,8 +87,8 @@ const floorGeometry = createPlaneMeshGeometry(5000, 5000, 1, 1);
 const floor = createMesh(floorGeometry, [floorMaterial]);
 addNodeChild(scene.root, floor);
 
-const { animationBuckets, environment } = await loadKnights(scene);
-bakeGlEnvironmentIbl(state, environment);
+const { animationBuckets, environment } = await loadKnights(webHostImage, scene);
+bakeGlEnvironmentIbl(renderer.state, environment);
 
 const orbit = createOrbitControllerFromAway(camera, {
   distance: 2000,
@@ -134,7 +98,7 @@ const orbit = createOrbitControllerFromAway(camera, {
   maxTiltAngle: 90,
 });
 
-bindOrbitDrag(canvas, orbit, { minDistance: 100, maxDistance: 2000 });
+bindOrbitDrag(renderer.canvas, orbit, { minDistance: 100, maxDistance: 2000 });
 
 let keyUp = false;
 let keyDown = false;
@@ -226,37 +190,13 @@ function frame(now: number): void {
   }
 
   orbit.update();
-  drawGlScene3DShadowMap(state, scene.root, shadowCamera, directional);
-  if (pipeline === null) {
-    pipeline = createGlRenderEffectPipeline(state, { format: 'rgba16f', depth: 'depth-stencil' });
-  }
-  beginGlRenderEffectPipeline(state, pipeline);
-  renderGlBackground(state);
-  state.gl.depthMask(true);
-  state.gl.clearDepth(1);
-  state.gl.clear(state.gl.DEPTH_BUFFER_BIT);
-  drawGlScene3D(state, scene.root, camera, lights);
-  // AwayJS applies no tone mapping at all, so the default ACES curve was the single largest source of
-  // mismatch: its shoulder compressed the mid-tones, crushed the darks and desaturated the armour.
-  // Reinhard with a high white point is near-linear across this scene's range — closest to AwayJS's
-  // straight gamma-space output while still clamping the few specular pixels above 1.
-  endGlRenderEffectPipeline(state, pipeline, [
-    createToneMapEffect({ operator: 'reinhard', white: 8, exposure: 1.0 }),
-    createFxaaEffect(),
-  ]);
+  renderer.renderShadowMap(scene.root, shadowCamera, directional);
+  renderer.render(scene.root, camera, lights);
   requestAnimationFrame(frame);
 }
 
-window.addEventListener('resize', () => {
-  const w = window.innerWidth;
-  const h = window.innerHeight;
-  const pixelRatio = window.devicePixelRatio || 1;
-  canvas.width = w * pixelRatio;
-  canvas.height = h * pixelRatio;
-  canvas.style.width = `${w}px`;
-  canvas.style.height = `${h}px`;
-  state.gl.viewport(0, 0, canvas.width, canvas.height);
-  (camera.projection as PerspectiveProjection).aspect = w / h;
-});
+renderer.resize(camera);
+window.addEventListener('resize', () => renderer.resize(camera));
 
 requestAnimationFrame(frame);
+
