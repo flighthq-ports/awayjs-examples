@@ -1,7 +1,7 @@
+import { webHostImage } from '@flighthq/host-web';
 import type {
   Mesh,
   Node3D,
-  PerspectiveProjection,
   StandardPbrMaterial,
 } from '@flighthq/sdk';
 import {
@@ -15,7 +15,6 @@ import {
   createCubeTexture,
   createEmissiveMaterial,
   createEnvironment,
-  createFxaaEffect,
   createImageResourceFromBitmap,
   createMesh,
   createNode3D,
@@ -27,14 +26,12 @@ import {
   createStandardPbrMaterial,
   createTexture,
   createTilingSampler,
-  createToneMapEffect,
   createVector3,
   DEG_TO_RAD,
   fillBitmapLinearGradient,
   getNodeChildren,
   invalidateNodeLocalTransform,
   loadImageResourceFromUrl,
-  packOpaqueColor,
   setCubeTextureFace,
   setQuaternionFromAxisAngle,
   setTextureUvScale,
@@ -44,14 +41,9 @@ import {
 import { awayDirection, createCameraFromAway } from '../../shared/camera';
 import { createDirectionalLightFromAway } from '../../shared/lighting';
 import { ARMOR_RAMP, buildMetallicRoughnessMap, colorizeByLuminance, STONE_RAMP, VISOR_RAMP } from './colorize';
-import { createScene3DContext } from './renderer';
+import { setupRenderer } from './render.gl';
 
-const ctx = createScene3DContext({
-  width: window.innerWidth,
-  height: window.innerHeight,
-  backgroundColor: packOpaqueColor(0xcec8c6),
-  effects: [createToneMapEffect({ operator: 'aces' }), createFxaaEffect()],
-});
+const renderer = setupRenderer();
 
 const scene = createScene3D();
 
@@ -70,7 +62,7 @@ const skySurface = createBitmap(1, 256);
 fillBitmapLinearGradient(createBitmapRegion(skySurface), skyRamp, 0, 0, 0, 256);
 const skyMaterial = createEmissiveMaterial({
   emissive: 0xffffffff,
-  emissiveMap: createTexture({ source: createImageResourceFromBitmap(skySurface) }),
+  emissiveMap: createTexture({ source: createImageResourceFromBitmap(webHostImage, skySurface) }),
   emissiveStrength: 1.35,
 });
 skyMaterial.doubleSided = true;
@@ -87,10 +79,10 @@ const GROUND_REFLECT = 0x9a6a42ff;
 const envFaces = [HORIZON_REFLECT, HORIZON_REFLECT, SKY_REFLECT, GROUND_REFLECT, HORIZON_REFLECT, HORIZON_REFLECT];
 const envCube = createCubeTexture();
 for (let i = 0; i < 6; i++) {
-  setCubeTextureFace(envCube, i, createImageResourceFromBitmap(createBitmap(8, 8, envFaces[i])));
+  setCubeTextureFace(envCube, i, createImageResourceFromBitmap(webHostImage, createBitmap(8, 8, envFaces[i])));
 }
 const environment = createEnvironment({ environment: envCube, intensity: 0.55 });
-bakeGlEnvironmentIbl(ctx.state, environment);
+bakeGlEnvironmentIbl(renderer.state, environment);
 
 // Now that the colorized albedo carries the palette, the light just shades it: a warm-white key (a
 // saturated orange key would muddy the olive/orange albedo) with a cool ambient fill for contrast.
@@ -114,8 +106,8 @@ addNodeChild(scene.root, spartanContainer);
 const [spartanObjText, terrainObjText, masterchiefImage, stoneImage] = await Promise.all([
   fetch('Halo_3_SPARTAN4.obj').then((r) => r.text()),
   fetch('terrain.obj').then((r) => r.text()),
-  loadImageResourceFromUrl('masterchief_base.png'),
-  loadImageResourceFromUrl('stone_tx.jpg'),
+  loadImageResourceFromUrl(webHostImage, 'masterchief_base.png'),
+  loadImageResourceFromUrl(webHostImage, 'stone_tx.jpg'),
 ]);
 
 // Scalars stay 1 so the metallicRoughnessMap fully drives both channels per region.
@@ -201,20 +193,11 @@ function frame(): void {
     invalidateNodeLocalTransform(terrainNode);
   }
 
-  ctx.render(scene.root, camera, lights);
+  renderer.render(scene.root, camera, lights);
   requestAnimationFrame(frame);
 }
 
-window.addEventListener('resize', () => {
-  const w = window.innerWidth;
-  const h = window.innerHeight;
-  const pixelRatio = window.devicePixelRatio || 1;
-  ctx.canvas.width = w * pixelRatio;
-  ctx.canvas.height = h * pixelRatio;
-  ctx.canvas.style.width = `${w}px`;
-  ctx.canvas.style.height = `${h}px`;
-  ctx.state.gl.viewport(0, 0, ctx.canvas.width, ctx.canvas.height);
-  (camera.projection as PerspectiveProjection).aspect = w / h;
-});
+renderer.resize(camera);
+window.addEventListener('resize', () => renderer.resize(camera));
 
 requestAnimationFrame(frame);

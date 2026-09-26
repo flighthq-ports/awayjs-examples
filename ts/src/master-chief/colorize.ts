@@ -1,4 +1,5 @@
-import type { Bitmap, Image } from '@flighthq/sdk';
+import { webHostBitmapReadback, webHostImage } from '@flighthq/host-web';
+import type { Bitmap, ImageResource } from '@flighthq/sdk';
 import { createImageResourceFromBitmap, captureBitmapFromImageResource } from '@flighthq/sdk';
 
 import { createMetallicRoughnessImage } from '../../shared/pbrConvert';
@@ -42,11 +43,12 @@ export function buildRampChannel(stops: ReadonlyArray<ColorStop>, channel: 'r' |
 // CHROMA_MASK (only the visor, in this atlas) go through `chromaStops` instead.
 export const CHROMA_MASK = 24;
 export function colorizeByLuminance(
-  image: Image,
+  image: ImageResource,
   baseStops: ReadonlyArray<ColorStop>,
   chromaStops?: ReadonlyArray<ColorStop>,
-): Image {
-  const surface = captureBitmapFromImageResource(image);
+): ImageResource {
+  const surface = captureBitmapFromImageResource(webHostBitmapReadback, image);
+  if (!surface) throw new Error('Unable to read image pixels.');
   const data = surface.data;
   if (data === null) return image;
   const br = buildRampChannel(baseStops, 'r');
@@ -70,7 +72,9 @@ export function colorizeByLuminance(
       data[i + 2] = bb[luma];
     }
   }
-  return createImageResourceFromBitmap(surface);
+  const result = createImageResourceFromBitmap(webHostImage, surface);
+  if (!result) throw new Error('Unable to create image resource.');
+  return result;
 }
 
 export const ARMOR_RAMP: ColorStop[] = [
@@ -132,8 +136,8 @@ function sampleScalarStops(stops: ReadonlyArray<ScalarStop>, t: number): number 
   return lo.v + (hi.v - lo.v) * Math.min(1, Math.max(0, (t - lo.t) / span));
 }
 
-export function buildMetallicRoughnessMap(image: Image): Bitmap {
-  return createMetallicRoughnessImage(image, (r, g, b) => {
+export function buildMetallicRoughnessMap(image: ImageResource): Bitmap {
+  return createMetallicRoughnessImage(webHostBitmapReadback, image, (r, g, b) => {
     const luma = 0.299 * r + 0.587 * g + 0.114 * b;
     const isVisor = Math.max(r, g, b) - Math.min(r, g, b) > CHROMA_MASK / 255;
     return {
