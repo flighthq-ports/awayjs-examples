@@ -1,20 +1,16 @@
-import type {
-  PerspectiveProjection,
-} from '@flighthq/sdk';
+import { webHostImage } from '@flighthq/host-web';
 import {
   addNodeChild,
   BlendMode,
   copyQuaternion,
   createBoxMeshGeometry,
   createCustomShaderMaterial,
-  createFxaaEffect,
   createMesh,
   createQuaternion,
   createSampler,
   createScene3D,
   createScene3DLights,
   createTexture,
-  createToneMapEffect,
   createTorusMeshGeometry,
   createVector3,
   invalidateNodeLocalTransform,
@@ -29,19 +25,15 @@ import {
 
 import { awayDirection, awayPosition, createCameraFromAway } from '../../shared/camera';
 import { createDirectionalLightFromAway } from '../../shared/lighting';
-import { createScene3DContext } from './renderer';
+import { setupRenderer } from './render.gl';
 
 const DEG = Math.PI / 180;
 const CUTOUT_SHADER = 'cubePrimitiveCutout';
 
-const ctx = createScene3DContext({
-  width: window.innerWidth,
-  height: window.innerHeight,
-  effects: [createToneMapEffect(), createFxaaEffect()],
-});
+const renderer = setupRenderer();
 
-registerGlCustomShaderMaterial(ctx.state);
-registerGlCustomMaterialShader(ctx.state, CUTOUT_SHADER, {
+registerGlCustomShaderMaterial(renderer.state);
+registerGlCustomMaterialShader(renderer.state, CUTOUT_SHADER, {
   vertex: `#version 300 es
 layout(location = 0) in vec3 a_position;
 layout(location = 1) in vec3 a_normal;
@@ -95,7 +87,7 @@ const { directional, ambient } = createDirectionalLightFromAway({
 });
 const lights = createScene3DLights({ ambient, directional });
 
-const image = await loadImageResourceFromUrl('spacy_texture.png');
+const image = await loadImageResourceFromUrl(webHostImage, 'spacy_texture.png');
 // The texture contains hard, binary-alpha window cutouts. Mipmap averaging turns those cutouts into
 // bright partial-coverage texels, which show up as pale borders under additive blending. Match the
 // source ImageSampler's smooth base-level sampling without generating alpha-bleeding mip levels.
@@ -177,20 +169,11 @@ function frame(): void {
   copyQuaternion(cube.rotation, scratchQuatA);
   invalidateNodeLocalTransform(cube);
 
-  ctx.render(scene.root, camera, lights);
+  renderer.render(scene.root, camera, lights);
   requestAnimationFrame(frame);
 }
 
-window.addEventListener('resize', () => {
-  const w = window.innerWidth;
-  const h = window.innerHeight;
-  const pixelRatio = window.devicePixelRatio || 1;
-  ctx.canvas.width = w * pixelRatio;
-  ctx.canvas.height = h * pixelRatio;
-  ctx.canvas.style.width = `${w}px`;
-  ctx.canvas.style.height = `${h}px`;
-  ctx.state.gl.viewport(0, 0, ctx.canvas.width, ctx.canvas.height);
-  (camera.projection as PerspectiveProjection).aspect = w / h;
-});
+renderer.resize(camera);
+window.addEventListener('resize', () => renderer.resize(camera));
 
-frame();
+requestAnimationFrame(frame);
