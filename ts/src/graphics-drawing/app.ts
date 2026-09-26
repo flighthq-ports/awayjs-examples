@@ -2,65 +2,20 @@ import type { Shape } from '@flighthq/sdk';
 import {
   addNodeChild,
   appendShapeBeginFill,
-  appendShapeCurveTo,
+  appendShapeQuadraticCurveTo,
   appendShapeEndFill,
   appendShapeLineStyle,
   appendShapeLineTo,
   appendShapeMoveTo,
   createClipRegionFromCircle,
   createDisplayObject,
-  createGlCanvasElement,
-  createGlRenderState,
-  createMatrix,
   createShape,
-  createCanvasShapeRasterizer,
-  createCanvasTextureResolvers,
-  defaultGlShapeCommands,
-  defaultGlShapeRenderer,
-  enableGlClipSupport,
   invalidateNodeLocalTransform,
-  prepareScene2DRender,
-  registerGlStandardMaterial,
-  registerGlShapeCommands,
-  registerGlShapeRasterizer,
-  registerRenderer,
-  registerStandardGlTextureResolvers,
-  renderGlBackground,
-  renderGlScene2D,
   setNode2DClip,
-  ShapeKind,
 } from '@flighthq/sdk';
+import { setupRenderer } from './render.gl';
 
-const width = window.innerWidth;
-const height = window.innerHeight;
-const pixelRatio = window.devicePixelRatio || 1;
-
-const mount = document.getElementById('app');
-const canvas = createGlCanvasElement(width, height, pixelRatio);
-if (mount) {
-  mount.replaceWith(canvas);
-} else {
-  document.body.appendChild(canvas);
-}
-document.body.style.margin = '0';
-
-const state = createGlRenderState(canvas, {
-  backgroundColor: 0x777777ff,
-  contextAttributes: { alpha: false, preserveDrawingBuffer: false },
-  pixelRatio,
-});
-// Shapes are authored in logical units; this device transform scales the scene up to the
-// backing-store resolution so it stays crisp on HiDPI displays.
-state.renderTransform2D = createMatrix(pixelRatio, 0, 0, pixelRatio, 0, 0);
-
-// Textured materials resolve their maps through the backing-kind registry; without this every
-// texture resolves to null and the scene renders untextured.
-registerStandardGlTextureResolvers(state);
-registerGlStandardMaterial(state);
-registerRenderer(state, ShapeKind, defaultGlShapeRenderer);
-registerGlShapeCommands(state, defaultGlShapeCommands);
-registerGlShapeRasterizer(state, createCanvasShapeRasterizer(createCanvasTextureResolvers()));
-enableGlClipSupport(state);
+const renderer = setupRenderer();
 const root = createDisplayObject();
 
 function packColor(r: number, g: number, b: number): number {
@@ -75,17 +30,17 @@ function buildBatmanLogo(fillColor: number, strokeColor: number): Shape {
   appendShapeLineTo(shape, 50, 50);
   appendShapeLineTo(shape, 50, 50);
   appendShapeLineTo(shape, 290, 50);
-  appendShapeCurveTo(shape, 290, 150, 450, 150);
+  appendShapeQuadraticCurveTo(shape, 290, 150, 450, 150);
   appendShapeLineTo(shape, 460, 60);
   appendShapeLineTo(shape, 470, 100);
   appendShapeLineTo(shape, 530, 100);
   appendShapeLineTo(shape, 540, 60);
   appendShapeLineTo(shape, 550, 150);
-  appendShapeCurveTo(shape, 710, 150, 710, 50);
+  appendShapeQuadraticCurveTo(shape, 710, 150, 710, 50);
   appendShapeLineTo(shape, 950, 50);
-  appendShapeCurveTo(shape, 800, 120, 825, 250);
-  appendShapeCurveTo(shape, 630, 280, 500, 450);
-  appendShapeCurveTo(shape, 370, 280, 175, 250);
+  appendShapeQuadraticCurveTo(shape, 800, 120, 825, 250);
+  appendShapeQuadraticCurveTo(shape, 630, 280, 500, 450);
+  appendShapeQuadraticCurveTo(shape, 370, 280, 175, 250);
   appendShapeEndFill(shape);
   return shape;
 }
@@ -145,21 +100,11 @@ function frame(): void {
     invalidateNodeLocalTransform(animShapes[i]);
   }
 
-  prepareScene2DRender(state, root);
-  renderGlBackground(state);
-  renderGlScene2D(state, root);
+  renderer.render(root);
   requestAnimationFrame(frame);
 }
 
-window.addEventListener('resize', () => {
-  const w = window.innerWidth;
-  const h = window.innerHeight;
-  const pr = window.devicePixelRatio || 1;
-  canvas.width = w * pr;
-  canvas.height = h * pr;
-  canvas.style.width = `${w}px`;
-  canvas.style.height = `${h}px`;
-  state.gl.viewport(0, 0, canvas.width, canvas.height);
-});
+renderer.resize();
+window.addEventListener('resize', renderer.resize);
 
 frame();
