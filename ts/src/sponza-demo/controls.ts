@@ -69,3 +69,4 @@ export function bindFirstPersonControls(canvas: HTMLCanvasElement, fps: FirstPer
     fps.update();
   };
 }
+

@@ -1,4 +1,5 @@
-import type { ExtendedPbrMaterial, Node3D, PerspectiveProjection } from '@flighthq/sdk';
+import { webHostBitmapReadback, webHostImage } from '@flighthq/host-web';
+import type { ExtendedPbrMaterial, Node3D } from '@flighthq/sdk';
 import {
   addNodeChild,
   bakeGlEnvironmentIbl,
@@ -7,21 +8,17 @@ import {
   createAabb,
   createCamera3D,
   createEnvironment,
-  createFxaaEffect,
   createOrthographicProjection,
   createScene3D,
   createScene3DFromAwd2,
   createScene3DLights,
-  createScreenSpaceFogEffect,
-  createToneMapEffect,
-  getNodeChildren,
   getNode3DWorldBounds,
+  getNodeChildren,
   getNodeWorldMatrix4,
   isMesh,
   loadImageResourceFromUrl,
   orientScene3DBillboardsToCamera,
-  packOpaqueColor,
-  drawGlScene3DShadowMap,
+  sdkHostDecompressDeflate,
   setNodeLocalMatrix4,
 } from '@flighthq/sdk';
 
@@ -30,12 +27,15 @@ import {
   createCameraFromAway,
   createFirstPersonControllerFromAway,
 } from '../../shared/camera';
+// The block handlers for this file, generated at build time by
+// @flighthq/vite-plugin-manifest: it walks the same block headers the importer will, so the
+// list cannot drift from the asset.
+import { parserOptions } from '../../../assets/sponza/sponza.awd?manifest';
+
 import { createCubeTextureFromAwayFaces } from '../../shared/cubemap';
 import { createDirectionalLightFromAway } from '../../shared/lighting';
 import { bindFirstPersonControls } from './controls';
-import { createScene3DContext } from './renderer';
-import type { SkyboxRenderState } from './skybox';
-import { renderSkyboxScene } from './skybox';
+import { setupRenderer } from './render.gl';
 import { createSponzaTorches } from './torches';
 import {
   createTextureMap,
@@ -48,22 +48,8 @@ import {
 
 // AwayJS used linear fog from 0–4,000 world units. Flight's post effect consumes the camera's
 // nonlinear window depth, so this starts around 1,050 units and reaches the background near 4,000.
-const fogEffect = createScreenSpaceFogEffect({
-  // Applied in the HDR pipeline before tone mapping, so the original bright lavender reads nearly
-  // white. A deep blue-grey keeps the atmosphere visible without bleaching the distant materials.
-  color: packOpaqueColor(0x30384a),
-  near: 0.985,
-  far: 0.999,
-  density: 1.8,
-});
-const effects = [fogEffect, createToneMapEffect(), createFxaaEffect()];
 
-const ctx = createScene3DContext({
-  width: window.innerWidth,
-  height: window.innerHeight,
-  backgroundColor: packOpaqueColor(0x9090e7),
-  effects,
-});
+const renderer = setupRenderer();
 
 const scene = createScene3D();
 
@@ -109,15 +95,18 @@ const skyboxFaceFiles = [
 
 const [awdBuffer, sponzaTextureImages, skyboxFaceImages, fireImage] = await Promise.all([
   fetch('sponza/sponza.awd').then((r) => r.arrayBuffer()),
-  loadSponzaTextures(sponzaTextureFiles),
-  Promise.all(skyboxFaceFiles.map((file) => loadImageResourceFromUrl(`skybox/${file}`))),
-  loadImageResourceFromUrl('fire.png'),
+  loadSponzaTextures(webHostImage, sponzaTextureFiles),
+  Promise.all(skyboxFaceFiles.map((file) => loadImageResourceFromUrl(webHostImage, `skybox/${file}`))),
+  loadImageResourceFromUrl(webHostImage, 'fire.png'),
 ]);
 
 const textureMap = createTextureMap(sponzaTextureFiles, sponzaTextureImages);
 const materialCache = new Map<string, ExtendedPbrMaterial>();
 
-const awdScene = createScene3DFromAwd2(new Uint8Array(awdBuffer));
+const awdScene = createScene3DFromAwd2(new Uint8Array(awdBuffer), {
+  ...parserOptions,
+  deflate: sdkHostDecompressDeflate,
+});
 
 walkAndAssignMaterials(awdScene.root, materialCache, textureMap);
 
@@ -151,12 +140,12 @@ const shadowCamera = createCamera3D({
   projection: createOrthographicProjection({ halfWidth: 1000, halfHeight: 1000 }),
 });
 configureDirectionalShadowCamera3DTightFit(shadowCamera, directional.direction, shadowBounds, 1.02);
-drawGlScene3DShadowMap(ctx.state, shadowScene.root, shadowCamera, directional);
+renderer.renderShadowMap(shadowScene.root, shadowCamera, directional);
 
 const torches = createSponzaTorches(scene.root, fireImage);
 const lights = createScene3DLights({ ambient, directional, point: torches.lights });
 
-const cubeTexture = createCubeTextureFromAwayFaces(skyboxFaceImages);
+const cubeTexture = createCubeTextureFromAwayFaces(webHostBitmapReadback, skyboxFaceImages);
 const environment = createEnvironment({
   environment: cubeTexture,
   // The original skybox was only a backdrop. This is the scene's entire fill: baking an IBL supersedes
@@ -167,8 +156,7 @@ const environment = createEnvironment({
   // flattening the courtyard's sun/shadow split.
   intensity: 0.85,
 });
-bakeGlEnvironmentIbl(ctx.state, environment);
-const skyboxRef: SkyboxRenderState = { pipeline: null };
+bakeGlEnvironmentIbl(renderer.state, environment);
 const fps = createFirstPersonControllerFromAway(camera, {
   y: 150,
   yaw: 90,
@@ -176,26 +164,18 @@ const fps = createFirstPersonControllerFromAway(camera, {
   maxPitch: 80,
 });
 
-const step = bindFirstPersonControls(ctx.canvas, fps);
+const step = bindFirstPersonControls(renderer.canvas, fps);
 
 function frame(timeMs: number): void {
   step();
   torches.update(timeMs);
   orientScene3DBillboardsToCamera(scene.root, camera);
-  renderSkyboxScene(ctx.state, ctx.canvas, skyboxRef, environment, scene.root, camera, lights, effects);
+  renderer.render(scene.root, camera, lights, environment);
   requestAnimationFrame(frame);
 }
 
-window.addEventListener('resize', () => {
-  const w = window.innerWidth;
-  const h = window.innerHeight;
-  const pr = window.devicePixelRatio || 1;
-  ctx.canvas.width = w * pr;
-  ctx.canvas.height = h * pr;
-  ctx.canvas.style.width = `${w}px`;
-  ctx.canvas.style.height = `${h}px`;
-  ctx.state.gl.viewport(0, 0, ctx.canvas.width, ctx.canvas.height);
-  (camera.projection as PerspectiveProjection).aspect = w / h;
-});
+renderer.resize(camera);
+window.addEventListener('resize', () => renderer.resize(camera));
 
 requestAnimationFrame(frame);
+
