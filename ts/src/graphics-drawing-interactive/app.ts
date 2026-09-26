@@ -2,7 +2,7 @@ import {
   addNodeChild,
   appendShapeBeginFill,
   appendShapeCircle,
-  appendShapeCurveTo,
+  appendShapeQuadraticCurveTo,
   appendShapeEndFill,
   appendShapeLineStyle,
   appendShapeLineTo,
@@ -12,28 +12,14 @@ import {
   clearShapeCommands,
   connectSignal,
   createDisplayObject,
-  createGlCanvasElement,
-  createGlRenderState,
   createInputManager,
-  createMatrix,
   createShape,
-  createCanvasShapeRasterizer,
-  createCanvasTextureResolvers,
-  defaultGlShapeCommands,
-  defaultGlShapeRenderer,
   invalidateNodeAppearance,
   invalidateNodeLocalTransform,
   invalidateNodeRender,
-  prepareScene2DRender,
-  registerGlStandardMaterial,
-  registerGlShapeCommands,
-  registerGlShapeRasterizer,
-  registerRenderer,
-  registerStandardGlTextureResolvers,
-  renderGlBackground,
-  renderGlScene2D,
-  ShapeKind,
 } from '@flighthq/sdk';
+import { webHostInputIngress } from '@flighthq/host-web';
+import { setupRenderer } from './render.gl';
 
 interface DrawingPathEntry {
   cmd: string;
@@ -43,33 +29,8 @@ interface DrawingPathEntry {
   cy?: number;
 }
 
-const width = window.innerWidth;
-const height = window.innerHeight;
-const pixelRatio = window.devicePixelRatio || 1;
-
-const mount = document.getElementById('app');
-const canvas = createGlCanvasElement(width, height, pixelRatio);
-if (mount) {
-  mount.replaceWith(canvas);
-} else {
-  document.body.appendChild(canvas);
-}
 document.body.style.margin = '0';
-
-const state = createGlRenderState(canvas, {
-  backgroundColor: 0xddddddff,
-  contextAttributes: { alpha: false, preserveDrawingBuffer: false },
-  pixelRatio,
-});
-state.renderTransform2D = createMatrix(pixelRatio, 0, 0, pixelRatio, 0, 0);
-
-// Textured materials resolve their maps through the backing-kind registry; without this every
-// texture resolves to null and the scene renders untextured.
-registerStandardGlTextureResolvers(state);
-registerGlStandardMaterial(state);
-registerRenderer(state, ShapeKind, defaultGlShapeRenderer);
-registerGlShapeCommands(state, defaultGlShapeCommands);
-registerGlShapeRasterizer(state, createCanvasShapeRasterizer(createCanvasTextureResolvers()));
+const renderer = setupRenderer();
 const drawingPath: DrawingPathEntry[] = [];
 let isMouseDown = false;
 
@@ -107,7 +68,7 @@ function drawShape(): void {
     if (drawingPath[i].cmd === 'l') {
       appendShapeLineTo(shape, drawingPath[i].x, drawingPath[i].y);
     } else if (drawingPath[i].cmd === 'c') {
-      appendShapeCurveTo(shape, drawingPath[i].cx!, drawingPath[i].cy!, drawingPath[i].x, drawingPath[i].y);
+      appendShapeQuadraticCurveTo(shape, drawingPath[i].cx!, drawingPath[i].cy!, drawingPath[i].x, drawingPath[i].y);
     }
   }
   appendShapeEndFill(shape);
@@ -132,7 +93,7 @@ function updateNewPointForMousePosition(x: number, y: number): void {
 }
 
 const input = createInputManager();
-attachPointerInput(input, canvas);
+attachPointerInput(webHostInputIngress, input, renderer.canvas);
 
 connectSignal(input.onPointerDown, (data) => {
   circleGraphic.x = data.x;
@@ -175,21 +136,12 @@ function enterFrame(): void {
     invalidateNodeLocalTransform(circleGraphic);
   }
 
-  prepareScene2DRender(state, root);
-  renderGlBackground(state);
-  renderGlScene2D(state, root);
+  renderer.render(root);
   requestAnimationFrame(enterFrame);
 }
 
 window.addEventListener('resize', () => {
-  const w = window.innerWidth;
-  const h = window.innerHeight;
-  const pr = window.devicePixelRatio || 1;
-  canvas.width = w * pr;
-  canvas.height = h * pr;
-  canvas.style.width = `${w}px`;
-  canvas.style.height = `${h}px`;
-  state.gl.viewport(0, 0, canvas.width, canvas.height);
+  renderer.resize();
 });
 
 enterFrame();
