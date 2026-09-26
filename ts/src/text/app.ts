@@ -7,55 +7,29 @@ import {
   connectInputToTextInput,
   connectSignal,
   createDisplayObject,
-  createGlCanvasElement,
-  createGlRenderState,
+  createFontResource,
   createInputManager,
   createRichText,
   createTextInputManager,
-  defaultGlRichTextRenderer,
   enableTextInput,
   focusTextInput,
   invalidateNodeLocalTransform,
-  loadFontFromUrl,
-  prepareScene2DRender,
-  registerGlStandardMaterial,
-  registerRenderer,
-  registerStandardGlTextureResolvers,
-  renderGlBackground,
-  renderGlScene2D,
-  RichTextKind,
+  loadFontResourceFromUrl,
 } from '@flighthq/sdk';
+import { webHostFontLoading, webHostInputIngress } from '@flighthq/host-web';
+import { setupRenderer } from './render.gl';
 
 let width = window.innerWidth;
 let height = window.innerHeight;
 
-let pixelRatio = window.devicePixelRatio || 1;
-
-const mount = document.getElementById('app');
-const canvas = createGlCanvasElement(width, height, pixelRatio);
-if (mount) {
-  mount.replaceWith(canvas);
-} else {
-  document.body.appendChild(canvas);
-}
 document.body.style.margin = '0';
-
-const state = createGlRenderState(canvas, {
-  backgroundColor: 0xccccccff,
-  contextAttributes: { alpha: false, preserveDrawingBuffer: false },
-  pixelRatio,
-});
-
-// Textured materials resolve their maps through the backing-kind registry; without this every
-// texture resolves to null and the scene renders untextured.
-registerStandardGlTextureResolvers(state);
-registerGlStandardMaterial(state);
-registerRenderer(state, RichTextKind, defaultGlRichTextRenderer);
-const font = await loadFontFromUrl('georgia.ttf', 'Georgia');
+const renderer = setupRenderer();
+const font = createFontResource('Georgia');
+await loadFontResourceFromUrl(webHostFontLoading, font, 'georgia.ttf');
 
 const root = createDisplayObject();
-root.x = canvas.width / 2;
-root.y = canvas.height / 2;
+root.x = width / 2;
+root.y = height / 2;
 invalidateNodeLocalTransform(root);
 
 const textFields: RichText[] = [];
@@ -63,7 +37,7 @@ const textFields: RichText[] = [];
 for (let i = 0; i < 30; i++) {
   const tf = createRichText();
   tf.data.defaultTextFormat = {
-    font: font.name,
+    font: font.family,
     color: 0xff0000,
     size: 40,
   };
@@ -83,9 +57,9 @@ for (let i = 0; i < 30; i++) {
 let focusIndex = -1;
 
 const input = createInputManager();
-attachKeyboardInput(input, window);
-attachTextInput(input, canvas);
-attachWheelInput(input, canvas);
+attachKeyboardInput(webHostInputIngress, input, window);
+attachTextInput(webHostInputIngress, input, renderer.canvas);
+attachWheelInput(webHostInputIngress, input, renderer.canvas);
 
 const textInputManager = createTextInputManager();
 connectInputToTextInput(input, textInputManager);
@@ -106,8 +80,8 @@ function updateCamera(): void {
   root.scaleX = scale;
   root.scaleY = scale;
   // Scene coordinates map directly to backing-store pixels, so centre against the backing dimensions.
-  root.x = canvas.width / 2 - cameraX * scale;
-  root.y = canvas.height / 2 - cameraY * scale;
+  root.x = width / 2 - cameraX * scale;
+  root.y = height / 2 - cameraY * scale;
   invalidateNodeLocalTransform(root);
 }
 
@@ -124,22 +98,14 @@ connectSignal(input.onWheel, (data) => {
 });
 
 function frame(): void {
-  prepareScene2DRender(state, root);
-  renderGlBackground(state);
-  renderGlScene2D(state, root);
+  renderer.render(root);
   requestAnimationFrame(frame);
 }
 
 window.addEventListener('resize', () => {
   width = window.innerWidth;
   height = window.innerHeight;
-  pixelRatio = window.devicePixelRatio || 1;
-  canvas.width = width * pixelRatio;
-  canvas.height = height * pixelRatio;
-  canvas.style.width = `${width}px`;
-  canvas.style.height = `${height}px`;
-  state.pixelRatio = pixelRatio;
-  state.gl.viewport(0, 0, canvas.width, canvas.height);
+  renderer.resize();
   updateCamera();
 });
 
