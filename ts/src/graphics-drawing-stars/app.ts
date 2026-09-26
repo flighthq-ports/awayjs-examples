@@ -12,56 +12,16 @@ import {
   clearShapeCommands,
   connectSignal,
   createDisplayObject,
-  createGlCanvasElement,
-  createGlRenderState,
   createInputManager,
-  createMatrix,
   createShape,
-  createCanvasShapeRasterizer,
-  createCanvasTextureResolvers,
-  defaultGlShapeCommands,
-  defaultGlShapeRenderer,
   invalidateNodeLocalTransform,
   invalidateNodeRender,
-  prepareScene2DRender,
-  registerGlStandardMaterial,
-  registerGlShapeCommands,
-  registerGlShapeRasterizer,
-  registerRenderer,
-  registerStandardGlTextureResolvers,
   removeNodeChildren,
-  renderGlBackground,
-  renderGlScene2D,
-  ShapeKind,
 } from '@flighthq/sdk';
+import { setupRenderer } from './render.gl';
 
-const width = window.innerWidth;
-const height = window.innerHeight;
-const pixelRatio = window.devicePixelRatio || 1;
-
-const mount = document.getElementById('app');
-const canvas = createGlCanvasElement(width, height, pixelRatio);
-if (mount) {
-  mount.replaceWith(canvas);
-} else {
-  document.body.appendChild(canvas);
-}
-document.body.style.margin = '0';
-
-const state = createGlRenderState(canvas, {
-  backgroundColor: 0x777777ff,
-  contextAttributes: { alpha: false, preserveDrawingBuffer: false },
-  pixelRatio,
-});
-state.renderTransform2D = createMatrix(pixelRatio, 0, 0, pixelRatio, 0, 0);
-
-// Textured materials resolve their maps through the backing-kind registry; without this every
-// texture resolves to null and the scene renders untextured.
-registerStandardGlTextureResolvers(state);
-registerGlStandardMaterial(state);
-registerRenderer(state, ShapeKind, defaultGlShapeRenderer);
-registerGlShapeCommands(state, defaultGlShapeCommands);
-registerGlShapeRasterizer(state, createCanvasShapeRasterizer(createCanvasTextureResolvers()));
+const renderer = setupRenderer();
+const { canvas } = renderer;
 const root = createDisplayObject();
 
 let activeStar: Shape | null = null;
@@ -148,21 +108,11 @@ connectSignal(input.onKeyDown, (data) => {
 });
 
 function frame(): void {
-  prepareScene2DRender(state, root);
-  renderGlBackground(state);
-  renderGlScene2D(state, root);
+  renderer.render(root);
   requestAnimationFrame(frame);
 }
 
-window.addEventListener('resize', () => {
-  const w = window.innerWidth;
-  const h = window.innerHeight;
-  const pr = window.devicePixelRatio || 1;
-  canvas.width = w * pr;
-  canvas.height = h * pr;
-  canvas.style.width = `${w}px`;
-  canvas.style.height = `${h}px`;
-  state.gl.viewport(0, 0, canvas.width, canvas.height);
-});
+renderer.resize();
+window.addEventListener('resize', renderer.resize);
 
 frame();
