@@ -1,64 +1,35 @@
-import type { GlRenderEffectPipeline, PerspectiveProjection, Node3D } from '@flighthq/sdk';
+import type { Node3D } from '@flighthq/sdk';
 import {
   addNodeChild,
-  beginGlRenderEffectPipeline,
   configureDirectionalShadowCamera3D,
   createAabb,
   createCamera3D,
-  createFxaaEffect,
-  createGlCanvasElement,
-  createGlRenderEffectPipeline,
-  createGlRenderState,
   createOrthographicProjection,
   createScene3D,
   createScene3DFromAwd2,
   createScene3DLights,
   createShadedMaterial,
   createTexture,
-  createToneMapEffect,
-  defaultGlFxaaEffectRunner,
-  defaultGlToneMapEffectRunner,
-  drawGlScene3D,
-  drawGlScene3DShadowMap,
-  endGlRenderEffectPipeline,
   getNodeChildren,
   invalidateNodeLocalTransform,
   isMesh,
   loadImageResourceFromUrl,
-  registerGlRenderEffect,
-  registerGlShadedMaterial,
-  registerStandardGlTextureResolvers,
-  renderGlBackground,
+  sdkHostDecompressDeflate,
   setVector3,
 } from '@flighthq/sdk';
+import { webHostImage } from '@flighthq/host-web';
+
+
+// The block handlers for this file, generated at build time by
+// @flighthq/vite-plugin-manifest: it walks the same block headers the importer will, so the
+// list cannot drift from the asset.
+import { parserOptions } from '../../../assets/monsterhead/MonsterHead.awd?manifest';
 
 import { bindOrbitDrag, createCameraFromAway, createOrbitControllerFromAway } from '../../shared/camera';
 import { createDirectionalLightFromAway, createPointLightFromAway } from '../../shared/lighting';
+import { setupRenderer } from './render.gl';
 
-const pixelRatio = window.devicePixelRatio || 1;
-
-const mount = document.getElementById('app');
-const canvas = createGlCanvasElement(window.innerWidth, window.innerHeight, pixelRatio);
-if (mount) {
-  mount.replaceWith(canvas);
-} else {
-  document.body.appendChild(canvas);
-}
-document.body.style.margin = '0';
-
-const state = createGlRenderState(canvas, {
-  backgroundColor: 0x000000ff,
-  contextAttributes: { alpha: false, depth: true, preserveDrawingBuffer: false },
-  pixelRatio,
-});
-
-// Textured materials resolve their maps through the backing-kind registry; without this every
-// texture resolves to null and the scene renders untextured.
-registerStandardGlTextureResolvers(state);
-registerGlShadedMaterial(state);
-registerGlRenderEffect(state, 'FxaaEffect', defaultGlFxaaEffectRunner);
-registerGlRenderEffect(state, 'ToneMapEffect', defaultGlToneMapEffectRunner);
-let pipeline: GlRenderEffectPipeline | null = null;
+const renderer = setupRenderer();
 
 const scene = createScene3D();
 
@@ -136,7 +107,7 @@ const headMaterial = createShadedMaterial({
 
 async function tryLoadImage(url: string): Promise<Awaited<ReturnType<typeof loadImageResourceFromUrl>> | null> {
   try {
-    return await loadImageResourceFromUrl(url);
+    return await loadImageResourceFromUrl(webHostImage, url);
   } catch {
     return null;
   }
@@ -157,7 +128,10 @@ if (specularImage)
   });
 if (normalImage) headMaterial.normalMap = createTexture({ source: normalImage, colorSpace: 'linear' });
 
-const awdScene = createScene3DFromAwd2(new Uint8Array(awdBuffer));
+const awdScene = createScene3DFromAwd2(new Uint8Array(awdBuffer), {
+  ...parserOptions,
+  deflate: sdkHostDecompressDeflate,
+});
 
 function assignMaterialToMeshes(node: Node3D): void {
   if (isMesh(node)) {
@@ -188,39 +162,18 @@ const orbit = createOrbitControllerFromAway(camera, {
   maxTiltAngle: 90,
 });
 
-bindOrbitDrag(canvas, orbit);
+bindOrbitDrag(renderer.canvas, orbit);
 
 function frame(): void {
   orbit.update();
-  if (pipeline === null) {
-    pipeline = createGlRenderEffectPipeline(state, { format: 'rgba16f', depth: 'depth-stencil' });
-  }
-
   configureDirectionalShadowCamera3D(shadowCamera, lightDir, shadowBounds);
-  drawGlScene3DShadowMap(state, scene.root, shadowCamera, directional);
-
-  beginGlRenderEffectPipeline(state, pipeline);
-  renderGlBackground(state);
-  state.gl.depthMask(true);
-  state.gl.clearDepth(1);
-  state.gl.clear(state.gl.DEPTH_BUFFER_BIT);
-  drawGlScene3D(state, scene.root, camera, lights);
-  // A modest lift keeps the textured mid-tones readable without flattening the black backdrop or
-  // the source's deep Fresnel/shadow contrast.
-  endGlRenderEffectPipeline(state, pipeline, [createToneMapEffect({ exposure: 1.55 }), createFxaaEffect()]);
+  renderer.renderShadowMap(scene.root, shadowCamera, directional);
+  renderer.render(scene.root, camera, lights);
   requestAnimationFrame(frame);
 }
 
-window.addEventListener('resize', () => {
-  const w = window.innerWidth;
-  const h = window.innerHeight;
-  const pr = window.devicePixelRatio || 1;
-  canvas.width = w * pr;
-  canvas.height = h * pr;
-  canvas.style.width = `${w}px`;
-  canvas.style.height = `${h}px`;
-  state.gl.viewport(0, 0, canvas.width, canvas.height);
-  (camera.projection as PerspectiveProjection).aspect = w / h;
-});
+renderer.resize(camera);
+window.addEventListener('resize', () => renderer.resize(camera));
 
 requestAnimationFrame(frame);
+
