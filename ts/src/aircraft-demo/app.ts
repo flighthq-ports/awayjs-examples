@@ -1,6 +1,5 @@
 import type {
   Mesh,
-  PerspectiveProjection,
   Scene3DLights,
   Vector3,
 } from '@flighthq/sdk';
@@ -8,14 +7,11 @@ import {
   addNodeChild,
   advanceClock,
   copyVector3,
-  // createBloomEffect,
   createClock,
-  createFxaaEffect,
   createMatrix4,
   createNode3D,
   createScene3D,
   createScene3DLights,
-  createToneMapEffect,
   createVector3,
   DEG_TO_RAD,
   invalidateNodeAppearance,
@@ -32,12 +28,10 @@ import {
 import { awayDirection, createCameraFromAway, setAwayPosition } from '../../shared/camera';
 import { createDirectionalLightFromAway } from '../../shared/lighting';
 import { createAircraft } from './aircraft';
-import { canvas, glState } from './bootstrap';
+import { setupRenderer } from './render.gl';
 import { createSea } from './sea';
 import { createSkyEnvironment } from './skyEnvironment';
 import { createVaporTrail } from './vaporTrail';
-import type { SkyboxRenderState } from './skybox';
-import { renderSkyboxScene } from './skybox';
 
 // Motion rates in units per second. The sim advances at a locked fixed timestep (see the frame loop),
 // so these stay wall-clock stable regardless of display refresh.
@@ -69,6 +63,7 @@ const RIGHT_WING_PIVOT = createVector3(2.3, -2, 0);
 // A click toggles the gear/wing configuration between open (landing) and closed (clean flight).
 
 const scene = createScene3D();
+const renderer = setupRenderer();
 
 const camera = createCameraFromAway({ fov: 60, near: 0.5, far: 14000 });
 
@@ -81,7 +76,7 @@ const { directional, ambient } = createDirectionalLightFromAway({
 });
 const lights: Scene3DLights = createScene3DLights({ ambient, directional });
 
-const environment = await createSkyEnvironment(glState);
+const environment = await createSkyEnvironment(renderer.state);
 
 const sea = await createSea();
 addNodeChild(scene.root, sea.mesh);
@@ -145,13 +140,6 @@ function sweepWing(meshes: readonly Mesh[], pivot: Vector3, angle: number): void
     setNodeLocalMatrix4(mesh, wingMatrix);
   }
 }
-
-const skyboxRef: SkyboxRenderState = { pipeline: null };
-const aircraftEffects = [
-  // createBloomEffect({ threshold: 1, intensity: 1.1, radius: 12, passes: 2 }),
-  createToneMapEffect(),
-  createFxaaEffect(),
-];
 
 function updateCameraLookAt(): void {
   copyVector3(cameraTarget, f14Mesh.position);
@@ -251,7 +239,7 @@ function renderScene(): void {
   eye.z += flightZ;
   updateCameraLookAt();
 
-  renderSkyboxScene(glState, canvas, skyboxRef, environment, scene.root, camera, lights, aircraftEffects);
+  renderer.render(scene.root, camera, lights, environment);
 }
 
 // Fixed-timestep loop. A clock is advanced by the real frame delta, then the simulation is stepped in
@@ -275,16 +263,7 @@ function frame(now: number): void {
   requestAnimationFrame(frame);
 }
 
-window.addEventListener('resize', () => {
-  const w = window.innerWidth;
-  const h = window.innerHeight;
-  const pr = window.devicePixelRatio || 1;
-  canvas.width = w * pr;
-  canvas.height = h * pr;
-  canvas.style.width = `${w}px`;
-  canvas.style.height = `${h}px`;
-  glState.gl.viewport(0, 0, canvas.width, canvas.height);
-  (camera.projection as PerspectiveProjection).aspect = w / h;
-});
+renderer.resize(camera);
+window.addEventListener('resize', () => renderer.resize(camera));
 
 requestAnimationFrame(frame);

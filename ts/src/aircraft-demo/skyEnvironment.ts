@@ -1,3 +1,4 @@
+import { webHostBitmapReadback, webHostImage } from '@flighthq/host-web';
 import type { CubeTexture, Environment, GlRenderState } from '@flighthq/sdk';
 import {
   bakeGlEnvironmentIbl,
@@ -25,11 +26,12 @@ const cubeFaceUrls = [
 ];
 
 export async function createSkyEnvironment(glState: GlRenderState): Promise<Environment> {
-  const cubeImages = await Promise.all(cubeFaceUrls.map((url) => loadImageResourceFromUrl(url)));
+  const cubeImages = await Promise.all(cubeFaceUrls.map((url) => loadImageResourceFromUrl(webHostImage, url)));
   const cubeTexture: CubeTexture = createCubeTexture();
   for (let i = 0; i < 6; i++) {
     const image = cubeImages[i];
-    const surface = captureBitmapFromImageResource(image);
+    const surface = captureBitmapFromImageResource(webHostBitmapReadback, image);
+    if (!surface) throw new Error(`Unable to read skybox face ${i}.`);
     const region = createBitmapRegion(surface);
     if (i === 2 || i === 3) {
       flipBitmapVertical(region, region);

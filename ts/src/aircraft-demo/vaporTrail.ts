@@ -1,3 +1,4 @@
+import { webHostImage } from '@flighthq/host-web';
 import type {
   ParticleEmitter3D,
   ParticleEmitterConfig,
@@ -91,7 +92,7 @@ export interface VaporTrail {
 }
 
 export async function createVaporTrail(_scene: Scene3D): Promise<VaporTrail> {
-  const vaporImage = await loadImageResourceFromUrl(createSoftVaporSpriteUrl());
+  const vaporImage = await loadImageResourceFromUrl(webHostImage, createSoftVaporSpriteUrl());
   const vaporAtlas = createSingleSpriteAtlas(vaporImage);
 
   const emitters: VaporEmitter[] = [];

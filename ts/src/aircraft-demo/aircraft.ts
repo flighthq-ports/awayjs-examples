@@ -1,3 +1,4 @@
+import { webHostImage } from '@flighthq/host-web';
 import type {
   BlinnPhongMaterial,
   Material,
@@ -108,7 +109,7 @@ export async function createAircraft(): Promise<Aircraft> {
   const f14MaterialByUri = new Map<string, StandardPbrMaterial>();
   await Promise.all(
     Array.from(f14DiffuseUris, async (uri) => {
-      const image = await loadImageResourceFromUrl(`${f14AssetBase}/${uri}`);
+      const image = await loadImageResourceFromUrl(webHostImage, `${f14AssetBase}/${uri}`);
       f14MaterialByUri.set(
         uri,
         createStandardPbrMaterial({

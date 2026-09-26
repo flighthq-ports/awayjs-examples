@@ -1,0 +1,92 @@
+import type {
+  Camera3D,
+  Environment,
+  GlEffectState,
+  GlRenderStateOptions,
+  Node3D,
+  Scene3DLights,
+} from '@flighthq/sdk';
+import {
+  beginGlEffectPass,
+  createFxaaEffect,
+  createGlEffectState,
+  createToneMapEffect,
+  endGlEffectPass,
+  // glScene3DRenderPreset,
+  glStandardPbrMeshMaterialRenderer,
+  registerGlFxaaEffect,
+  registerGlParticleEmitter3DPass,
+  registerGlToneMapEffect,
+  renderGlEnvironmentSkybox,
+  renderGlScene3D,
+  setCamera3DAspect,
+  standardGlTextureResolvers,
+  StandardPbrMaterialKind,
+} from '@flighthq/sdk';
+import { createExampleGlSurface } from '../../shared/glSurface';
+
+// The aircraft and sea use StandardPbr materials; the vapor trail draws through its registered particle pass.
+function createMinimalScene3DGlRegistries(): GlRenderStateOptions {
+  return {
+    materialRenderers: new Map([
+      [StandardPbrMaterialKind, glStandardPbrMeshMaterialRenderer],
+    ]),
+    textureResolvers: standardGlTextureResolvers,
+  };
+}
+
+export function setupRenderer() {
+  const pixelRatio = window.devicePixelRatio || 1;
+  // const registries = glScene3DRenderPreset; // import all
+  const registries = createMinimalScene3DGlRegistries();
+  const { canvas, clear, state } = createExampleGlSurface(
+    window.innerWidth, window.innerHeight, pixelRatio, 0x2c2c32ff, registries,
+  );
+  const mount = document.getElementById('app');
+  if (mount) {
+    mount.replaceChildren(canvas);
+  } else {
+    document.body.appendChild(canvas);
+  }
+
+  registerGlToneMapEffect(state);
+  registerGlParticleEmitter3DPass(state);
+  registerGlFxaaEffect(state);
+
+  const effects = [createToneMapEffect(), createFxaaEffect()];
+  let effectState: GlEffectState | null = null;
+
+  return {
+    canvas,
+    state,
+    render(
+      scene: Readonly<Node3D>,
+      camera: Readonly<Camera3D>,
+      lights: Readonly<Scene3DLights>,
+      environment: Readonly<Environment> | null,
+    ): void {
+      effectState ??= createGlEffectState(state, { format: 'rgba16f', depth: 'depth-stencil' });
+      const pass = beginGlEffectPass(state, effectState, clear);
+      // The skybox fills the target before the scene draws over it, inside the same pass.
+      if (environment !== null) {
+        renderGlEnvironmentSkybox(state, environment, camera, canvas.width / canvas.height);
+      }
+      renderGlScene3D(pass, scene, camera, lights);
+      endGlEffectPass(pass, effectState, effects);
+    },
+    resize(camera: Camera3D): void {
+      const width = window.innerWidth;
+      const height = window.innerHeight;
+      const pixelRatio = window.devicePixelRatio || 1;
+      state.pixelRatio = pixelRatio;
+      canvas.width = width * pixelRatio;
+      canvas.height = height * pixelRatio;
+      canvas.style.width = `${width}px`;
+      canvas.style.height = `${height}px`;
+      state.gl.viewport(0, 0, canvas.width, canvas.height);
+      setCamera3DAspect(camera, width / height);
+    },
+  };
+}
+
+
