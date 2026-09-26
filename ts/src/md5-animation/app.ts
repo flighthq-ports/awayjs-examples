@@ -1,4 +1,4 @@
-import type { AnimationPlayer, PerspectiveProjection } from '@flighthq/sdk';
+import type { AnimationPlayer } from '@flighthq/sdk';
 import {
   addNodeChild,
   advanceAnimationPlayer,
@@ -9,75 +9,34 @@ import {
   createAnimationPlayer,
   createCamera3D,
   createSmaaEffect,
-  createGlCanvasElement,
-  createGlRenderEffectPipeline,
-  createGlRenderState,
   createOrthographicProjection,
   createQuaternion,
   createScene3D,
   createToneMapEffect,
   createVector3,
   createVignetteEffect,
-  defaultGlSmaaEffectRunner,
-  defaultGlToneMapEffectRunner,
-  defaultGlVignetteEffectRunner,
   DEG_TO_RAD,
-  drawGlScene3DShadowMap,
   invalidateNodeLocalTransform,
-  registerGlExtendedPbrMaterial,
-  registerGlRenderEffect,
-  registerStandardGlTextureResolvers,
-  registerGlSpecularPbrExtension,
-  registerGlStandardPbrMaterial,
   setCamera3DViewMatrix4FromLookAt,
   setQuaternionFromAxisAngle,
   setTextureUvOffset,
   setVector3,
   updateMeshSkin,
 } from '@flighthq/sdk';
+import { webHostBitmapReadback, webHostImage } from '@flighthq/host-web';
 
 import { awayPosition, createCameraFromAway } from '../../shared/camera';
 import { ANIM_NAMES, IDLE_NAME, WALK_NAME, loadCharacter } from './character';
 import { bindCharacterControls } from './controls';
 import { loadEnvironment } from './environment';
-import { backgroundAwareFogEffectRunner } from './fog';
 import { createMd5LightRig } from './lights';
-import type { SkyboxRenderState } from './skybox';
-import { renderSkyboxScene } from './skybox';
+import { setupRenderer } from './render.gl';
 
 const ROTATION_SPEED = 3;
 const WALK_SPEED = 1;
 const RUN_SPEED = 2;
 const CHARACTER_YAW_OFFSET = -90 * DEG_TO_RAD;
 
-const width = window.innerWidth;
-const height = window.innerHeight;
-const pixelRatio = window.devicePixelRatio || 1;
-
-const mount = document.getElementById('app');
-const canvas = createGlCanvasElement(width, height, pixelRatio);
-if (mount) {
-  mount.replaceWith(canvas);
-} else {
-  document.body.appendChild(canvas);
-}
-document.body.style.margin = '0';
-
-const glState = createGlRenderState(canvas, {
-  backgroundColor: 0x000000ff,
-  contextAttributes: { alpha: false, depth: true, preserveDrawingBuffer: false },
-  pixelRatio,
-});
-// Textured materials resolve their maps through the backing-kind registry; without this every
-// texture resolves to null and the scene renders untextured.
-registerStandardGlTextureResolvers(glState);
-registerGlStandardPbrMaterial(glState);
-registerGlExtendedPbrMaterial(glState);
-registerGlSpecularPbrExtension(glState);
-registerGlRenderEffect(glState, 'SmaaEffect', defaultGlSmaaEffectRunner);
-registerGlRenderEffect(glState, 'ScreenSpaceFogEffect', backgroundAwareFogEffectRunner);
-registerGlRenderEffect(glState, 'ToneMapEffect', defaultGlToneMapEffectRunner);
-registerGlRenderEffect(glState, 'VignetteEffect', defaultGlVignetteEffectRunner);
 const scene = createScene3D();
 
 const camera = createCameraFromAway({ fov: 60, far: 5000 });
@@ -101,7 +60,10 @@ function updateCamera(): void {
   setCamera3DViewMatrix4FromLookAt(camera, eye, cameraTarget, up);
 }
 
-const [{ environment, groundMesh, fogEffect }, character] = await Promise.all([loadEnvironment(), loadCharacter()]);
+const [{ environment, groundMesh, fogEffect }, character] = await Promise.all([
+  loadEnvironment(webHostImage, webHostBitmapReadback),
+  loadCharacter(webHostImage),
+]);
 addNodeChild(scene.root, groundMesh);
 // The tone map runs on its default operator, which is ACES — measured byte-identical to passing 'aces'
 // explicitly. That is also the best of the five here: agx and filmic both wash the ground out and drain
@@ -131,6 +93,8 @@ const effects = [
   // over the same crop reads 10.17 against FXAA's 8.52, because FXAA was softening the face to get less.
   createSmaaEffect(),
 ];
+
+const renderer = setupRenderer(effects);
 
 const lightRig = createMd5LightRig();
 const { directional: whiteLight, lights } = lightRig;
@@ -183,9 +147,6 @@ let spriteRotY = 0;
 let rotationInc = 0;
 let characterX = 0;
 let characterZ = 0;
-const skyboxRef: SkyboxRenderState = {
-  pipeline: createGlRenderEffectPipeline(glState, { format: 'rgba16f', depth: 'depth-stencil-sampled' }),
-};
 
 function play(name: string): void {
   if (currentAnim === name) return;
@@ -304,23 +265,14 @@ function frame(ts: number): void {
   configureDirectionalShadowCamera3D(shadowCamera, whiteLight.direction, shadowBounds);
   // Use the SDK's scene-root traversal for shadow casters. The tight moving bounds keep the map
   // concentrated on the character and its contact shadow rather than the decorative ground plane.
-  drawGlScene3DShadowMap(glState, scene.root, shadowCamera, whiteLight);
-
-  renderSkyboxScene(glState, canvas, skyboxRef, environment, scene.root, camera, lights, effects);
+  renderer.renderShadowMap(scene.root, shadowCamera, whiteLight);
+  renderer.render(scene.root, camera, lights, environment);
   requestAnimationFrame(frame);
 }
 
-window.addEventListener('resize', () => {
-  const w = window.innerWidth;
-  const h = window.innerHeight;
-  const pr = window.devicePixelRatio || 1;
-  canvas.width = w * pr;
-  canvas.height = h * pr;
-  canvas.style.width = `${w}px`;
-  canvas.style.height = `${h}px`;
-  glState.gl.viewport(0, 0, canvas.width, canvas.height);
-  (camera.projection as PerspectiveProjection).aspect = w / h;
-});
+renderer.resize(camera);
+window.addEventListener('resize', () => renderer.resize(camera));
 
 updateCamera();
 requestAnimationFrame(frame);
+

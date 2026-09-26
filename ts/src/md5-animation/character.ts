@@ -1,8 +1,8 @@
-import type { AnimationClip, Image, Mesh, Node3D, Scene3D, Texture2D } from '@flighthq/sdk';
+import { createWebImageResourceFromCanvas } from '@flighthq/host-web';
+import type { AnimationClip, HostImageCapability, ImageResource, Mesh, Node3D, Scene3D, Texture2D } from '@flighthq/sdk';
 import {
   addNodeChild,
   createExtendedPbrMaterial,
-  createImageResourceFromCanvas,
   createScene3D,
   createScene3DFromMd5Mesh,
   createSpecularPbrExtension,
@@ -56,7 +56,7 @@ const GLOSS_CEIL_PERCENTILE = 0.999;
  *
  * glTF packs roughness in G and metallic in B, which is what the renderer samples.
  */
-function buildRoughnessMapFromSpecular(specular: Image): Image | null {
+function buildRoughnessMapFromSpecular(specular: ImageResource): ImageResource | null {
   const source = specular.source;
   if (!source) return null;
   const canvas = document.createElement('canvas');
@@ -95,7 +95,7 @@ function buildRoughnessMapFromSpecular(specular: Image): Image | null {
     data[i + 3] = 255;
   }
   ctx.putImageData(image, 0, 0);
-  return createImageResourceFromCanvas(canvas);
+  return createWebImageResourceFromCanvas(canvas);
 }
 
 export const ANIM_NAMES = [
@@ -132,12 +132,12 @@ async function fetchText(url: string): Promise<string> {
   return response.text();
 }
 
-export async function loadCharacter(): Promise<CharacterData> {
+export async function loadCharacter(host: Readonly<HostImageCapability>): Promise<CharacterData> {
   const [bodyDiffuse, bodyNormal, bodySpecular, gobImage] = await Promise.all([
-    loadImageResourceFromUrl('hellknight/hellknight_diffuse.jpg'),
-    loadImageResourceFromUrl('hellknight/hellknight_normals.png'),
-    loadImageResourceFromUrl('hellknight/hellknight_specular.png'),
-    loadImageResourceFromUrl('hellknight/gob.png'),
+    loadImageResourceFromUrl(host, 'hellknight/hellknight_diffuse.jpg'),
+    loadImageResourceFromUrl(host, 'hellknight/hellknight_normals.png'),
+    loadImageResourceFromUrl(host, 'hellknight/hellknight_specular.png'),
+    loadImageResourceFromUrl(host, 'hellknight/gob.png'),
   ]);
   // The source drives specular strength from hellknight_specular.png. That map is mostly dark, so it is
   // what keeps the hide matte and confines the wet sheen to the eyes, teeth and open wounds — a uniform
@@ -244,3 +244,4 @@ export async function loadCharacter(): Promise<CharacterData> {
 
   return { clips, skinnedMeshes, jointNodes, characterPositionNode, characterNode, gobTexture };
 }
+

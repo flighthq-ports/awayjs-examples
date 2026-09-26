@@ -1,7 +1,7 @@
-import type { Environment, Image, Mesh, ScreenSpaceFogEffect } from '@flighthq/sdk';
+import { createWebImageResourceFromCanvas } from '@flighthq/host-web';
+import type { Environment, HostBitmapReadbackCapability, HostImageCapability, ImageResource, Mesh, ScreenSpaceFogEffect } from '@flighthq/sdk';
 import {
   createEnvironment,
-  createImageResourceFromCanvas,
   createMesh,
   createPlaneMeshGeometry,
   createScreenSpaceFogEffect,
@@ -30,7 +30,7 @@ const GROUND_TINT = [0.78, 0.80, 0.98] as const;
  * texture is so red-dominant that a multiply strong enough to neutralise it also crushes the ground
  * into darkness.
  */
-function coolGroundDiffuse(rock: Image): Image | null {
+function coolGroundDiffuse(rock: ImageResource): ImageResource | null {
   const source = rock.source;
   if (!source) return null;
   const canvas = document.createElement('canvas');
@@ -52,7 +52,7 @@ function coolGroundDiffuse(rock: Image): Image | null {
     }
   }
   ctx.putImageData(image, 0, 0);
-  return createImageResourceFromCanvas(canvas);
+  return createWebImageResourceFromCanvas(canvas);
 }
 
 export interface EnvironmentData {
@@ -61,19 +61,22 @@ export interface EnvironmentData {
   fogEffect: ScreenSpaceFogEffect;
 }
 
-export async function loadEnvironment(): Promise<EnvironmentData> {
+export async function loadEnvironment(
+  hostImage: Readonly<HostImageCapability>,
+  hostBitmapReadback: Readonly<HostBitmapReadbackCapability>,
+): Promise<EnvironmentData> {
   const skyFaceNames = ['posX', 'negX', 'posY', 'negY', 'posZ', 'negZ'];
   const skyImages = await Promise.all(
-    skyFaceNames.map((face) => loadImageResourceFromUrl(`skybox/grimnight_${face}.png`)),
+    skyFaceNames.map((face) => loadImageResourceFromUrl(hostImage, `skybox/grimnight_${face}.png`)),
   );
-  const skyTexture = createCubeTextureFromAwayFaces(skyImages);
+  const skyTexture = createCubeTextureFromAwayFaces(hostBitmapReadback, skyImages);
   // Keep the sky as the backdrop while restraining its IBL contribution: a strong environment fill
   // washes out both the directional contact shadow and the ground normal-map response.
   const environment = createEnvironment({ environment: skyTexture, intensity: 0.45 });
 
   const [rockDiffuse, rockNormal] = await Promise.all([
-    loadImageResourceFromUrl('rockbase_diffuse.jpg'),
-    loadImageResourceFromUrl('rockbase_normals.png'),
+    loadImageResourceFromUrl(hostImage, 'rockbase_diffuse.jpg'),
+    loadImageResourceFromUrl(hostImage, 'rockbase_normals.png'),
   ]);
 
   const groundSampler = createTilingSampler();
@@ -115,3 +118,4 @@ export async function loadEnvironment(): Promise<EnvironmentData> {
 
   return { environment, groundMesh, fogEffect };
 }
+

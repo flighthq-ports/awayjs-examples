@@ -93,3 +93,4 @@ export function createMd5LightRig(): Md5LightRig {
 function setLightPosition(light: PointLight, x: number, y: number, z: number): void {
   setAwayPosition(light.position, x, y, z);
 }
+

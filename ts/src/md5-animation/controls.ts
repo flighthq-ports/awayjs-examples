@@ -88,3 +88,4 @@ export function bindCharacterControls(callbacks: CharacterControlCallbacks): voi
     }
   });
 }
+
