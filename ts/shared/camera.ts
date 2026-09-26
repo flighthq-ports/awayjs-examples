@@ -61,6 +61,8 @@ export interface AwayOrbitOptions {
   // AwayJS HoverController defaults — vertical travel multiplier and easing step count.
   yFactor?: number;
   steps?: number;
+  // HoverController.wrapPanAngle. Off by default, as it is in AwayJS.
+  wrapPanAngle?: boolean;
 }
 
 export interface OrbitController {
@@ -84,6 +86,8 @@ export function createOrbitControllerFromAway(camera: Camera3D, opts: Readonly<A
   const yFactor = opts.yFactor ?? 2;
   const steps = Math.max(1, opts.steps ?? 8);
   const SNAP_ANGLE = 0.01 * DEG_TO_RAD;
+  const wrapPanAngle = opts.wrapPanAngle ?? false;
+  const TWO_PI = Math.PI * 2;
 
   const eye = createVector3(0, 0, 0);
   const target = createVector3(opts.targetX ?? 0, opts.targetY ?? 0, -(opts.targetZ ?? 0));
@@ -106,6 +110,18 @@ export function createOrbitControllerFromAway(camera: Camera3D, opts: Readonly<A
     update() {
       // AwayJS clamps the target tilt in its setter; clamp before easing toward it.
       this.tiltAngle = Math.max(minTilt, Math.min(maxTilt, this.tiltAngle));
+
+      // HoverController.wrapPanAngle. The applied angle EASES toward the target, so a target that
+      // wraps — anything driven by atan2, which jumps 2*PI across its branch cut — makes the camera
+      // glide the long way round rather than continuing the way it was already turning. Rebasing
+      // the applied angle onto the nearest equivalent of the target keeps every step a short one.
+      if (wrapPanAngle) {
+        const wrapped = this.panAngle - Math.floor(this.panAngle / TWO_PI) * TWO_PI;
+        currentPan += wrapped - this.panAngle;
+        this.panAngle = wrapped;
+        while (this.panAngle - currentPan < -Math.PI) currentPan -= TWO_PI;
+        while (this.panAngle - currentPan > Math.PI) currentPan += TWO_PI;
+      }
 
       currentPan += (this.panAngle - currentPan) / (steps + 1);
       currentTilt += (this.tiltAngle - currentTilt) / (steps + 1);
@@ -221,6 +237,24 @@ export function setAwayPosition(out: Vector3Like, x: number, y: number, z: numbe
 export interface BindOrbitDragOptions {
   minDistance?: number;
   maxDistance?: number;
+  /**
+   * Degrees of orbit per pixel dragged. Defaults to the 0.3 most Away3D samples use
+   * (`panAngle += 0.3 * (stageX - prev)`); a few, such as OnkbaAWDAnimation, drag 1:1.
+   */
+  degreesPerPixel?: number;
+  /**
+   * Distance change per unit of wheel delta. The default 0.5 matches a browser notch
+   * (deltaY 100) to 50 units; Away3D's `distance -= delta * 5` over Flash's ±3-per-notch
+   * delta is nearer 0.15.
+   */
+  wheelScale?: number;
+  /**
+   * Consulted on mousedown; the drag only begins when it returns true. Away3D samples that let
+   * the mouse act on the scene gate the camera the same way — ShallowWaterDemo runs
+   * `if (planeDisturb) { disturb } else if (move) { rotate }`, so dragging on the water disturbs
+   * it without also spinning the camera. Defaults to always allowing the drag.
+   */
+  shouldStart?: (event: MouseEvent) => boolean;
 }
 
 export function bindOrbitDrag(
@@ -233,8 +267,11 @@ export function bindOrbitDrag(
   let lastMouseY = 0;
   let savedPan = orbit.panAngle;
   let savedTilt = orbit.tiltAngle;
+  const sensitivity = (opts?.degreesPerPixel ?? 0.3) * DEG_TO_RAD;
 
+  const shouldStart = opts?.shouldStart;
   canvas.addEventListener('mousedown', (e: MouseEvent) => {
+    if (shouldStart && !shouldStart(e)) return;
     dragging = true;
     lastMouseX = e.clientX;
     lastMouseY = e.clientY;
@@ -244,8 +281,8 @@ export function bindOrbitDrag(
 
   canvas.addEventListener('mousemove', (e: MouseEvent) => {
     if (!dragging) return;
-    orbit.panAngle = AWAY_MOUSE_SENSITIVITY * (e.clientX - lastMouseX) + savedPan;
-    orbit.tiltAngle = AWAY_MOUSE_SENSITIVITY * (e.clientY - lastMouseY) + savedTilt;
+    orbit.panAngle = sensitivity * (e.clientX - lastMouseX) + savedPan;
+    orbit.tiltAngle = sensitivity * (e.clientY - lastMouseY) + savedTilt;
   });
 
   window.addEventListener('mouseup', () => {
@@ -255,10 +292,12 @@ export function bindOrbitDrag(
   if (opts) {
     const minDist = opts.minDistance ?? 100;
     const maxDist = opts.maxDistance ?? 2000;
+    const wheelScale = opts.wheelScale ?? 0.5;
     canvas.addEventListener('wheel', (e: WheelEvent) => {
-      orbit.distance -= e.deltaY / 2;
+      orbit.distance -= e.deltaY * wheelScale;
       if (orbit.distance < minDist) orbit.distance = minDist;
       else if (orbit.distance > maxDist) orbit.distance = maxDist;
     });
   }
 }
+

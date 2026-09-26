@@ -8,3 +8,4 @@ export function createAwayMatteMaterial(baseColor: number, shininess = 20): Stan
     roughness: getPbrRoughnessFromPhongShininess(shininess),
   });
 }
+

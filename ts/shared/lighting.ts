@@ -137,3 +137,4 @@ export function createPointLightFromAway(opts: Readonly<AwayPointLightOptions>):
 }
 
 export { awayIntensity };
+
