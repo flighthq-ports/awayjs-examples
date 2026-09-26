@@ -7,66 +7,37 @@ import {
   connectInputToTextInput,
   connectSignal,
   createDisplayObject,
-  createGlCanvasElement,
-  createGlRenderState,
+  createFontResource,
   createGlyphAtlas,
   createInputManager,
   createRichText,
   createTextInputManager,
-  createWebGlyphRasterizerBackend,
-  defaultGlRichTextRenderer,
   enableGlTextInput,
   enableTextInput,
   focusTextInput,
   getGlyphAtlasEntry,
   invalidateNodeLocalTransform,
-  loadFontFromUrl,
-  prepareScene2DRender,
-  registerGlStandardMaterial,
-  registerRenderer,
-  registerStandardGlTextureResolvers,
-  renderGlBackground,
-  renderGlScene2D,
-  RichTextKind,
-  setGlyphRasterizerBackend,
+  loadFontResourceFromUrl,
 } from '@flighthq/sdk';
+import { webHostFontLoading, webHostGlyphRasterizer, webHostInputIngress } from '@flighthq/host-web';
+import { setupRenderer } from './render.gl';
 
 let width = window.innerWidth;
 let height = window.innerHeight;
 
-let pixelRatio = window.devicePixelRatio || 1;
-
-const mount = document.getElementById('app');
-const canvas = createGlCanvasElement(width, height, pixelRatio);
-if (mount) {
-  mount.replaceWith(canvas);
-} else {
-  document.body.appendChild(canvas);
-}
 document.body.style.margin = '0';
-
-const state = createGlRenderState(canvas, {
-  backgroundColor: 0xccccccff,
-  contextAttributes: { alpha: false, preserveDrawingBuffer: false },
-  pixelRatio,
-});
-
-// Textured materials resolve their maps through the backing-kind registry; without this every
-// texture resolves to null and the scene renders untextured.
-registerStandardGlTextureResolvers(state);
-registerGlStandardMaterial(state);
-registerRenderer(state, RichTextKind, defaultGlRichTextRenderer);
+const renderer = setupRenderer();
 enableGlTextInput();
-const font = await loadFontFromUrl('georgia.ttf', 'Georgia');
-
-setGlyphRasterizerBackend(createWebGlyphRasterizerBackend());
+const font = createFontResource('Georgia');
+await loadFontResourceFromUrl(webHostFontLoading, font, 'georgia.ttf');
 
 const atlas = createGlyphAtlas({
-  fontFamily: font.name,
+  fontFamily: font.family,
   fontSize: 128,
   width: 2048,
   height: 2048,
   padding: 5,
+  rasterizerBackend: webHostGlyphRasterizer,
 });
 
 // The displayed fields use RichText so they can retain TextField behavior, but this remains an FNT
@@ -76,8 +47,8 @@ for (const character of '0123456789') {
 }
 
 const root = createDisplayObject();
-root.x = canvas.width / 2;
-root.y = canvas.height / 2;
+root.x = width / 2;
+root.y = height / 2;
 invalidateNodeLocalTransform(root);
 
 const textFields: RichText[] = [];
@@ -86,7 +57,7 @@ for (let i = 0; i < 300; i++) {
   const size = Math.round(10 + Math.random() * 100);
   const tf = createRichText();
   tf.data.defaultTextFormat = {
-    font: font.name,
+    font: font.family,
     color: 0xff0000,
     size,
   };
@@ -113,15 +84,15 @@ function updateCamera(): void {
   root.scaleX = s;
   root.scaleY = s;
   // Scene coordinates map directly to backing-store pixels, so centre against the backing dimensions.
-  root.x = canvas.width / 2 - cameraX * s;
-  root.y = canvas.height / 2 - cameraY * s;
+  root.x = width / 2 - cameraX * s;
+  root.y = height / 2 - cameraY * s;
   invalidateNodeLocalTransform(root);
 }
 
 const input = createInputManager();
-attachKeyboardInput(input, window);
-attachTextInput(input, canvas);
-attachWheelInput(input, canvas);
+attachKeyboardInput(webHostInputIngress, input, window);
+attachTextInput(webHostInputIngress, input, renderer.canvas);
+attachWheelInput(webHostInputIngress, input, renderer.canvas);
 
 const textInputManager = createTextInputManager();
 connectInputToTextInput(input, textInputManager);
@@ -147,22 +118,14 @@ connectSignal(input.onWheel, (data) => {
 });
 
 function frame(): void {
-  prepareScene2DRender(state, root);
-  renderGlBackground(state);
-  renderGlScene2D(state, root);
+  renderer.render(root);
   requestAnimationFrame(frame);
 }
 
 window.addEventListener('resize', () => {
   width = window.innerWidth;
   height = window.innerHeight;
-  pixelRatio = window.devicePixelRatio || 1;
-  canvas.width = width * pixelRatio;
-  canvas.height = height * pixelRatio;
-  canvas.style.width = `${width}px`;
-  canvas.style.height = `${height}px`;
-  state.pixelRatio = pixelRatio;
-  state.gl.viewport(0, 0, canvas.width, canvas.height);
+  renderer.resize();
   updateCamera();
 });
 
