@@ -1,6 +1,6 @@
+import { createWebImageResourceFromCanvas } from '@flighthq/host-web';
 import type {
   Billboard,
-  PerspectiveProjection,
   ShadedMaterial,
   Texture,
 } from '@flighthq/sdk';
@@ -19,10 +19,6 @@ import {
   createDirectionalLight,
   createEmissiveModifier,
   createEnvironment,
-  createFxaaEffect,
-  createGlCanvasElement,
-  createGlRenderState,
-  createImageResourceFromCanvas,
   createMesh,
   createNode3D,
   createQuaternion,
@@ -34,11 +30,8 @@ import {
   createShadedMaterial,
   createSphereMeshGeometry,
   createTexture,
-  createToneMapEffect,
   createUnlitMaterial,
   createVector3,
-  defaultGlFxaaEffectRunner,
-  defaultGlToneMapEffectRunner,
   DEG_TO_RAD,
   flipBitmapHorizontal,
   flipBitmapVertical,
@@ -51,56 +44,19 @@ import {
   loadImageResourceFromUrl,
   orientScene3DBillboardsToCamera,
   packOpaqueColor,
-  registerBuiltInGlModifierSnippets,
-  registerGlRenderEffect,
-  registerGlShadedMaterial,
-  registerStandardGlTextureResolvers,
-  registerGlUnlitMaterial,
   setCubeTextureFace,
   setNode3DAlpha,
   setQuaternionFromAxisAngle,
   setVector3,
 } from '@flighthq/sdk';
+import { webHostBitmapReadback, webHostImage } from '@flighthq/host-web';
 
 import { bindOrbitDrag, createCameraFromAway, createOrbitControllerFromAway } from '../../shared/camera';
 import { awayIntensity } from '../../shared/lighting';
 import { createAtmosphere, loadCloudTexture } from './atmosphere';
-import { registerEarthShader } from './earthShader';
-import type { SkyboxRenderState } from './skybox';
-import { renderSkyboxScene } from './skybox';
+import { setupRenderer } from './render.gl';
 
-const pixelRatio = window.devicePixelRatio || 1;
-
-const mount = document.getElementById('app');
-const canvas = createGlCanvasElement(window.innerWidth, window.innerHeight, pixelRatio);
-if (mount) {
-  mount.replaceWith(canvas);
-} else {
-  document.body.appendChild(canvas);
-}
-document.body.style.margin = '0';
-
-const state = createGlRenderState(canvas, {
-  backgroundColor: 0x000005ff,
-  contextAttributes: { alpha: false, depth: true, preserveDrawingBuffer: false },
-  pixelRatio,
-});
-
-// The earth/clouds use the composable shaded lit base (@flighthq/shading, mirroring the original
-// AwayJS MethodMaterial), the sun is a self-lit disc via an EmissiveModifier, and the atmosphere is
-// an unlit halo billboard. The modifier-snippet registration MUST run before the first draw: the
-// shaded program cache keys a plain Emissive identically whether or not its snippet is registered, so
-// a program compiled before registration would cache modifier-less and never recompile.
-// Textured materials resolve their maps through the backing-kind registry; without this every
-// texture resolves to null and the scene renders untextured.
-registerStandardGlTextureResolvers(state);
-registerGlShadedMaterial(state);
-registerBuiltInGlModifierSnippets(state);
-registerGlUnlitMaterial(state);
-registerGlRenderEffect(state, 'FxaaEffect', defaultGlFxaaEffectRunner);
-registerGlRenderEffect(state, 'ToneMapEffect', defaultGlToneMapEffectRunner);
-registerEarthShader(state);
-const skyboxRef: SkyboxRenderState = { pipeline: null };
+const renderer = setupRenderer();
 
 const scene = createScene3D();
 
@@ -167,7 +123,7 @@ addNodeChild(scene.root, tiltContainer);
 const earthSunDir: number[] = [-1, 0, 0];
 const earthMaterial = createCustomShaderMaterial({ shaderKey: 'globeEarth', uniforms: { u_sunDir: earthSunDir } });
 
-const cloudMaterial = await loadCloudTexture();
+const cloudMaterial = await loadCloudTexture(webHostImage);
 
 const { mesh: atmosphere } = createAtmosphere();
 
@@ -200,7 +156,7 @@ const flareTextures = new Map<string, Texture>();
 const flareUrls = [...new Set(FLARE_SPECS.map((spec) => spec.url))];
 await Promise.all(
   flareUrls.map(async (url) => {
-    const sourceImage = await loadImageResourceFromUrl(url);
+    const sourceImage = await loadImageResourceFromUrl(webHostImage, url);
     let maskSource = sourceImage;
     // flare7 supplies the large ring sprites, where its 128px source reveals a stairstepped edge.
     // Prefilter it once at upload resolution so magnification stays smooth without changing its shape.
@@ -214,10 +170,11 @@ await Promise.all(
         smoothCtx.imageSmoothingQuality = 'high';
         smoothCtx.filter = 'blur(1px)';
         smoothCtx.drawImage(sourceImage.source, 0, 0, smoothCanvas.width, smoothCanvas.height);
-        maskSource = createImageResourceFromCanvas(smoothCanvas);
+        maskSource = createWebImageResourceFromCanvas(smoothCanvas);
       }
     }
-    const sourceBitmap = captureBitmapFromImageResource(maskSource);
+    const sourceBitmap = captureBitmapFromImageResource(webHostBitmapReadback, maskSource);
+    if (!sourceBitmap) throw new Error(`Unable to read flare image ${url}.`);
     const maskedBitmap = createBitmap(sourceBitmap.width, sourceBitmap.height, 0xffffffff);
     copyBitmapChannel(
       createBitmapRegion(maskedBitmap),
@@ -251,13 +208,13 @@ const flares: FlareObject[] = FLARE_SPECS.map((spec) => {
 });
 
 const [dayImage, specImage] = await Promise.all([
-  loadImageResourceFromUrl('globe/land_ocean_ice_2048_match.jpg'),
-  loadImageResourceFromUrl('globe/earth_specular_2048.jpg'),
+  loadImageResourceFromUrl(webHostImage, 'globe/land_ocean_ice_2048_match.jpg'),
+  loadImageResourceFromUrl(webHostImage, 'globe/earth_specular_2048.jpg'),
 ]);
 
-// Night-lights texture: the source is a 16384-wide JPG, so downscale it into a 2048x1024 canvas to
+// Night-lights texture: the source is a 16384-wide JPG, so downscale it into a 2048x1024 renderer.canvas to
 // keep GPU memory sane, then bind day/night/specular to the earth shader's samplers.
-const nightSource = await loadImageResourceFromUrl('globe/land_lights_16384.jpg');
+const nightSource = await loadImageResourceFromUrl(webHostImage, 'globe/land_lights_16384.jpg');
 const nightCanvas = document.createElement('canvas');
 nightCanvas.width = 2048;
 nightCanvas.height = 1024;
@@ -265,7 +222,7 @@ const nightCtx = nightCanvas.getContext('2d');
 let nightImage = nightSource;
 if (nightCtx && nightSource.source) {
   nightCtx.drawImage(nightSource.source, 0, 0, 2048, 1024);
-  nightImage = createImageResourceFromCanvas(nightCanvas);
+  nightImage = createWebImageResourceFromCanvas(nightCanvas);
 }
 earthMaterial.textures = {
   u_dayTex: createTexture({ source: dayImage }),
@@ -283,10 +240,11 @@ const skyboxFaceUrls = [
   'skybox/space_posZ.jpg',
   'skybox/space_negZ.jpg',
 ];
-const skyboxFaces = await Promise.all(skyboxFaceUrls.map((url) => loadImageResourceFromUrl(url)));
+const skyboxFaces = await Promise.all(skyboxFaceUrls.map((url) => loadImageResourceFromUrl(webHostImage, url)));
 const skyboxTexture = createCubeTexture();
 for (let i = 0; i < 6; i++) {
-  const face = captureBitmapFromImageResource(skyboxFaces[i]!);
+  const face = captureBitmapFromImageResource(webHostBitmapReadback, skyboxFaces[i]!);
+  if (!face) throw new Error(`Unable to read skybox face ${i}.`);
   const region = createBitmapRegion(face);
   if (i === 2 || i === 3) flipBitmapVertical(region, region);
   else flipBitmapHorizontal(region, region);
@@ -304,7 +262,7 @@ const orbit = createOrbitControllerFromAway(camera, {
   yFactor: 1,
 });
 
-bindOrbitDrag(canvas, orbit, { minDistance: 400, maxDistance: 10000 });
+bindOrbitDrag(renderer.canvas, orbit, { minDistance: 400, maxDistance: 10000 });
 
 const axisY = createVector3(0, 1, 0);
 const scratchQuat = createQuaternion();
@@ -400,23 +358,12 @@ function frame(ts: number): void {
   orbit.update();
   updateFlares();
   orientScene3DBillboardsToCamera(scene.root, camera);
-  renderSkyboxScene(state, canvas, skyboxRef, environment, scene.root, camera, lights, [
-    createToneMapEffect(),
-    createFxaaEffect(),
-  ]);
+  renderer.render(scene.root, camera, lights, environment);
   requestAnimationFrame(frame);
 }
 
-window.addEventListener('resize', () => {
-  const w = window.innerWidth;
-  const h = window.innerHeight;
-  const ratio = window.devicePixelRatio || 1;
-  canvas.width = w * ratio;
-  canvas.height = h * ratio;
-  canvas.style.width = `${w}px`;
-  canvas.style.height = `${h}px`;
-  state.gl.viewport(0, 0, canvas.width, canvas.height);
-  (camera.projection as PerspectiveProjection).aspect = w / h;
-});
+renderer.resize(camera);
+window.addEventListener('resize', () => renderer.resize(camera));
 
 requestAnimationFrame(frame);
+
