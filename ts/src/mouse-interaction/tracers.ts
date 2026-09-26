@@ -108,3 +108,4 @@ export function positionNormalTracer(
   copyQuaternion(tracer.rotation, scratchQuatA);
   invalidateNodeLocalTransform(tracer);
 }
+

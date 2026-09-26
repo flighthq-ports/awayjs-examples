@@ -133,3 +133,4 @@ export async function loadHeadModel(
 
   return headMesh;
 }
+
