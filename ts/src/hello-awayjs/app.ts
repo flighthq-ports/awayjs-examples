@@ -1,17 +1,12 @@
-import type {
-  Mesh,
-  PerspectiveProjection,
-} from '@flighthq/sdk';
+import { webHostImage } from '@flighthq/host-web';
+import type { Mesh } from '@flighthq/sdk';
 import {
   addNodeChild,
-  createFxaaEffect,
   createMesh,
   createScene3D,
   createScene3DHit,
-  createScene3DLights,
   createSphereMeshGeometry,
   createTexture,
-  createToneMapEffect,
   createUnlitMaterial,
   invalidateNodeLocalTransform,
   loadImageResourceFromUrl,
@@ -20,19 +15,13 @@ import {
 } from '@flighthq/sdk';
 
 import { createCameraFromAway } from '../../shared/camera';
-import { createScene3DContext } from './renderer';
+import { setupRenderer } from './render.gl';
 
-const ctx = createScene3DContext({
-  width: window.innerWidth,
-  height: window.innerHeight,
-  effects: [createToneMapEffect(), createFxaaEffect()],
-});
+const renderer = setupRenderer();
 
 const scene = createScene3D();
 
 const camera = createCameraFromAway({ y: 500, z: -600, fov: 60 });
-
-const lights = createScene3DLights();
 
 const material = createUnlitMaterial({ baseColor: 0xffffffff });
 
@@ -57,7 +46,7 @@ for (let i = 0; i < 100; i++) {
 const hit = createScene3DHit();
 
 function pickSphere(event: MouseEvent): Mesh | null {
-  const rect = ctx.canvas.getBoundingClientRect();
+  const rect = renderer.canvas.getBoundingClientRect();
   const screenX = ((event.clientX - rect.left) / rect.width) * 2 - 1;
   const screenY = -(((event.clientY - rect.top) / rect.height) * 2 - 1);
   const result = pickScene3D(scene.root, camera, screenX, screenY, hit);
@@ -70,7 +59,7 @@ function pickSphere(event: MouseEvent): Mesh | null {
   return null;
 }
 
-ctx.canvas.addEventListener('mousedown', (event: MouseEvent) => {
+renderer.canvas.addEventListener('mousedown', (event: MouseEvent) => {
   const sphere = pickSphere(event);
   if (sphere) {
     setVector3(sphere.scale, 2, 2, 2);
@@ -78,7 +67,7 @@ ctx.canvas.addEventListener('mousedown', (event: MouseEvent) => {
   }
 });
 
-ctx.canvas.addEventListener('mouseup', (event: MouseEvent) => {
+renderer.canvas.addEventListener('mouseup', (event: MouseEvent) => {
   const sphere = pickSphere(event);
   if (sphere) {
     setVector3(sphere.scale, 1, 1, 1);
@@ -86,25 +75,16 @@ ctx.canvas.addEventListener('mouseup', (event: MouseEvent) => {
   }
 });
 
-const image = await loadImageResourceFromUrl('floor_diffuse.jpg');
+const image = await loadImageResourceFromUrl(webHostImage, 'floor_diffuse.jpg');
 const texture = createTexture({ source: image });
 material.baseColorMap = texture;
 
-window.addEventListener('resize', () => {
-  const w = window.innerWidth;
-  const h = window.innerHeight;
-  const pixelRatio = window.devicePixelRatio || 1;
-  ctx.canvas.width = w * pixelRatio;
-  ctx.canvas.height = h * pixelRatio;
-  ctx.canvas.style.width = `${w}px`;
-  ctx.canvas.style.height = `${h}px`;
-  ctx.state.gl.viewport(0, 0, ctx.canvas.width, ctx.canvas.height);
-  (camera.projection as PerspectiveProjection).aspect = w / h;
-});
+renderer.resize(camera);
+window.addEventListener('resize', () => renderer.resize(camera));
 
 function frame(): void {
-  ctx.render(scene.root, camera, lights);
+  renderer.render(scene.root, camera);
   requestAnimationFrame(frame);
 }
 
-frame();
+requestAnimationFrame(frame);
