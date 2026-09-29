@@ -22,16 +22,15 @@ import {
   standardGlTextureResolvers,
   StandardPbrMaterialKind,
 } from '@flighthq/sdk';
-// What pknight.md2 itself needs, generated at build time; merged with the renderers this example
-// adds on its own.
-import { glOptions } from '../../../assets/pknight.md2?manifest';
-
 import { createExampleGlSurface } from '../../shared/glSurface';
 
 // Every knight shades through one StandardPbr material; the MD2 import is re-materialled on load.
+//
+// Not derivable from content, so pknight.md2?manifest deliberately does not supply it. MD2 carries no
+// materials at all — the file's render fragment is empty — and knights.ts supplies the only one the
+// scene uses. The parser fragment IS content-derived, and knights.ts takes it.
 function createMinimalScene3DGlRegistries(): GlRenderStateOptions {
   return {
-    ...glOptions,
     materialRenderers: new Map([[StandardPbrMaterialKind, glStandardPbrMeshMaterialRenderer]]),
     textureResolvers: standardGlTextureResolvers,
   };

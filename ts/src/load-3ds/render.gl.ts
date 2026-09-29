@@ -26,19 +26,18 @@ import {
   standardGlTextureResolvers,
   StandardPbrMaterialKind,
 } from '@flighthq/sdk';
-// What soldier_ant.3ds itself needs, generated at build time; merged with the renderers this example
-// adds on its own.
-import { glOptions } from '../../../assets/soldier_ant.3ds?manifest';
-
 import { createExampleGlSurface } from '../../shared/glSurface';
 
 // The ant imports as StandardPbr; the ground plane adds an ExtendedPbr material carrying a
 // specular extension.
+//
+// Not derivable from content, so soldier_ant.3ds?manifest deliberately does not supply it: the file
+// carries BlinnPhong materials, but app.ts replaces every mesh's material before the first draw. The
+// manifest is right about the file and silent about what actually renders, so spreading its render
+// fragment here would pin a BlinnPhong renderer (~14 kB) that nothing can reach. The parser fragment
+// IS content-derived, and app.ts takes it.
 function createMinimalScene3DGlRegistries(): GlRenderStateOptions {
   return {
-    ...glOptions,
-    // soldier_ant.3ds carries BlinnPhong materials, but every mesh is re-materialled below
-    // (app.ts), so this deliberately REPLACES the file's material renderers rather than adding to them.
     materialRenderers: new Map([
       [ExtendedPbrMaterialKind, glExtendedPbrMeshMaterialRenderer],
       [StandardPbrMaterialKind, glStandardPbrMeshMaterialRenderer],
