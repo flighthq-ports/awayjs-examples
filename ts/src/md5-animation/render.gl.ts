@@ -30,6 +30,10 @@ import {
   standardGlTextureResolvers,
   StandardPbrMaterialKind,
 } from '@flighthq/sdk';
+// What hellknight.md5mesh itself needs, generated at build time; merged with the renderers this example
+// adds on its own.
+import { glOptions } from '../../../assets/hellknight/hellknight.md5mesh?manifest';
+
 import { createExampleGlSurface } from '../../shared/glSurface';
 import { backgroundAwareFogEffectRunner } from './fog';
 
@@ -37,6 +41,9 @@ import { backgroundAwareFogEffectRunner } from './fog';
 // extension is what the hide's highlight needs.
 function createMinimalScene3DGlRegistries(): GlRenderStateOptions {
   return {
+    ...glOptions,
+    // hellknight.md5mesh carries BlinnPhong materials, but character.ts assigns its own to every
+    // mesh, so this deliberately REPLACES the file's material renderers rather than adding to them.
     materialRenderers: new Map([
       [ExtendedPbrMaterialKind, glExtendedPbrMeshMaterialRenderer],
       [StandardPbrMaterialKind, glStandardPbrMeshMaterialRenderer],
