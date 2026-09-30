@@ -4,7 +4,7 @@ import {
   BlendMode,
   copyQuaternion,
   createBoxMeshGeometry,
-  createCustomShaderMaterial,
+  createBlinnPhongMaterial,
   createMesh,
   createQuaternion,
   createSampler,
@@ -16,8 +16,6 @@ import {
   invalidateNodeLocalTransform,
   loadImageResourceFromUrl,
   multiplyQuaternion,
-  registerGlCustomMaterialShader,
-  registerGlCustomShaderMaterial,
   setCamera3DViewMatrix4FromLookAt,
   setQuaternionFromAxisAngle,
   setVector3,
@@ -28,50 +26,7 @@ import { createDirectionalLightFromAway } from '../../shared/lighting';
 import { setupRenderer } from './render.gl';
 
 const DEG = Math.PI / 180;
-const CUTOUT_SHADER = 'cubePrimitiveCutout';
-
 const renderer = setupRenderer();
-
-registerGlCustomShaderMaterial(renderer.state);
-registerGlCustomMaterialShader(renderer.state, CUTOUT_SHADER, {
-  vertex: `#version 300 es
-layout(location = 0) in vec3 a_position;
-layout(location = 1) in vec3 a_normal;
-layout(location = 3) in vec2 a_uv0;
-uniform mat4 u_viewProjection;
-uniform mat4 u_model;
-uniform mat3 u_normalMatrix;
-out vec3 v_normal;
-out vec2 v_uv;
-void main() {
-  v_normal = u_normalMatrix * a_normal;
-  v_uv = a_uv0;
-  gl_Position = u_viewProjection * u_model * vec4(a_position, 1.0);
-}`,
-  fragment: `#version 300 es
-precision highp float;
-in vec3 v_normal;
-in vec2 v_uv;
-uniform sampler2D u_diffuseMap;
-uniform vec3 u_diffuseTint;
-uniform vec3 u_lightDirection;
-uniform vec3 u_lightRadiance;
-uniform vec3 u_ambientRadiance;
-uniform float u_contribution;
-out vec4 o_color;
-void main() {
-  vec4 texel = texture(u_diffuseMap, v_uv);
-  // Reject filtered transition texels; leaving them blended turns the lit side of each transparent
-  // window into a pale outline on both the cube and the more heavily minified torus.
-  if (texel.a < 0.99) discard;
-  vec3 normal = normalize(v_normal);
-  if (!gl_FrontFacing) normal = -normal;
-  float nDotL = max(dot(normal, -normalize(u_lightDirection)), 0.0);
-  vec3 albedo = texel.rgb * u_diffuseTint;
-  vec3 radiance = albedo * (u_ambientRadiance + u_lightRadiance * nDotL);
-  o_color = vec4(radiance * u_contribution, u_contribution);
-}`,
-});
 
 const scene = createScene3D();
 
@@ -96,29 +51,35 @@ const texture = createTexture({
   sampler: createSampler({ magFilter: 'linear', minFilter: 'linear', mipmaps: false }),
 });
 
-// AwayJS MethodMaterial is a classic lit material. Keep the same bright, non-PBR response for both
-// meshes, but let the cube contribute less additive radiance so the background remains visible
-// through its body as it does in AwayJS. The hard alpha boundary remains identical for both.
-function createCutoutMaterial(contribution: number) {
-  return createCustomShaderMaterial({
-    shaderKey: CUTOUT_SHADER,
-    textures: { u_diffuseMap: texture },
-    uniforms: {
-      // Linear-space equivalents of the source white material and AwayJS light values.
-      u_diffuseTint: [1, 1, 1],
-      u_lightDirection: [1, 0, 0],
-      u_lightRadiance: [2.8, 2.8, 2.8],
-      u_ambientRadiance: [0.094, 0.178, 0.244],
-      u_contribution: contribution,
-    },
-    alphaMode: 'blend',
+/**
+ * AwayJS MethodMaterial is a classic lit material, so this is BlinnPhongMaterial — the Flight model
+ * that keeps the same gamma-space Lambert term with no energy-conserving /π divide. That is the whole
+ * reason the lights above are built with `shading: 'phong'`; see shared/lighting.ts.
+ *
+ * The additive blend is AwayJS's own, not a stand-in for translucency. What the mesh contributes is
+ * decided by how the light model shades it, so both meshes take the same material and the scene lights
+ * drive them — an earlier hand-rolled Lambert shader here computed its own radiance from hardcoded
+ * uniforms, ignored those lights entirely, and had to dim the cube by a fixed 0.55 to stop it washing
+ * out. With the matching model that scaling is not needed.
+ *
+ * `mask` at 0.99 rather than `blend`: the texture's window cutouts are binary, and any partial-coverage
+ * texel additively blends into a pale outline around every window.
+ */
+function createCutoutMaterial() {
+  return createBlinnPhongMaterial({
+    diffuse: 0xffffffff,
+    diffuseMap: texture,
+    // The source material carries no specular lobe, and an additive one would read as blown highlights.
+    specular: 0x000000ff,
+    alphaMode: 'mask',
+    alphaCutoff: 0.99,
     blendMode: BlendMode.Add,
     doubleSided: true,
   });
 }
 
-const torusMaterial = createCutoutMaterial(1);
-const cubeMaterial = createCutoutMaterial(0.55);
+const torusMaterial = createCutoutMaterial();
+const cubeMaterial = createCutoutMaterial();
 
 const torusGeometry = createTorusMeshGeometry(150, 80, 32, 16);
 const torus = createMesh(torusGeometry, [torusMaterial]);

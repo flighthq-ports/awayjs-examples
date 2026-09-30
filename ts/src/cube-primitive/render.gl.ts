@@ -4,9 +4,9 @@ import {
   createFxaaEffect,
   createGlEffectState,
   createToneMapEffect,
-  CustomShaderMaterialKind,
+  BlinnPhongMaterialKind,
   endGlEffectPass,
-  glCustomShaderMeshMaterialRenderer,
+  glBlinnPhongMeshMaterialRenderer,
   // glScene3DRenderPreset,
   registerGlFxaaEffect,
   registerGlToneMapEffect,
@@ -18,7 +18,7 @@ import { createExampleGlSurface } from '../../shared/glSurface';
 
 function createMinimalScene3DGlRegistries(): GlRenderStateOptions {
   return {
-    materialRenderers: new Map([[CustomShaderMaterialKind, glCustomShaderMeshMaterialRenderer]]),
+    materialRenderers: new Map([[BlinnPhongMaterialKind, glBlinnPhongMeshMaterialRenderer]]),
     textureResolvers: standardGlTextureResolvers,
   };
 }
