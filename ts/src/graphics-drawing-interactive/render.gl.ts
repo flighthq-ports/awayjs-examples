@@ -12,17 +12,19 @@ import {
   ShapeKind,
 } from '@flighthq/sdk';
 import { createExampleGlSurface } from '../../shared/glSurface';
+import {
+  createExampleShapeRasterizer,
+  enableExampleShapeRaster,
+  exampleShapeRasterHosts,
+} from '../../shared/shapeRaster';
 
 function createMinimalScene2DGlRegistries(): GlRenderStateOptions {
   return {
     ...glRenderInfrastructure,
-    // Back to the default compact open outlines. glRenderInfrastructure opts into
-    // tessellateStrokePath, whose pathological-geometry rejection discards exactly what this example
-    // produces: a freehand stroke that crosses itself. A rejected stroke makes the mesh path report
-    // "not drawn" and fall through to the raster path, which registers no rasterizer here — so the
-    // drawing stopped appearing the moment the line first crossed, which reads as the drag ending.
-    strokeTessellator: null,
     nodeRenderers: new Map([[ShapeKind, glShapeRenderer]]),
+    // Where a self-crossing stroke goes. Without it the GPU mesh path declines such a stroke and there
+    // is nothing to fall through to, so it silently stops drawing.
+    shapeRasterizer: createExampleShapeRasterizer(),
   };
 }
 
@@ -31,10 +33,11 @@ export function setupRenderer() {
   // const registries = glScene2DRenderPreset; // import all
   const registries = createMinimalScene2DGlRegistries();
   const { canvas, clear, state } = createExampleGlSurface(
-    window.innerWidth, window.innerHeight, pixelRatio, 0xddddddff, registries,
+    window.innerWidth, window.innerHeight, pixelRatio, 0xddddddff, registries, exampleShapeRasterHosts,
   );
   document.getElementById('app')?.replaceChildren(canvas);
   if (!canvas.parentElement) document.body.appendChild(canvas);
+  enableExampleShapeRaster(state);
   const target = createGlScreenRenderTarget(state.gl);
   return {
     canvas,
