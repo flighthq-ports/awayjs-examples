@@ -14,7 +14,19 @@ import {
 import { createExampleGlSurface } from '../../shared/glSurface';
 
 function createMinimalScene2DGlRegistries(): GlRenderStateOptions {
-  return { ...glRenderInfrastructure, nodeRenderers: new Map([[ShapeKind, glShapeRenderer]]) };
+  return {
+    ...glRenderInfrastructure,
+    // Back to the default compact open outlines. glRenderInfrastructure opts into
+    // tessellateStrokePath, which buys hollow closed rings at the cost of pathological-geometry
+    // rejection — and a tracer is exactly the geometry it rejects: one long, self-intersecting open
+    // polyline. A rejected stroke makes the mesh path report "not drawn" and fall through to the
+    // raster path, which this example registers no rasterizer for, so the trail silently vanished.
+    // It went oldest-first, because the longest range is the likeliest to contain a rejected span:
+    // black (the oldest 50%) dropped out first, then grey, until only the newest 10% was left.
+    // Nothing here needs closed rings, so the rejection is pure downside.
+    strokeTessellator: null,
+    nodeRenderers: new Map([[ShapeKind, glShapeRenderer]]),
+  };
 }
 
 export function setupRenderer() {
