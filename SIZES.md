@@ -3,7 +3,7 @@
 Gzipped JS per sample, one build per renderer — each measured from a build containing only
 that sample, so the number is the program rather than a share of the gallery.
 
-Measured against `@flighthq/sdk` **0.5.1-next.1906.1e09ca0** on 2026-09-30. Regenerate with `npm run sizes`.
+Measured against `@flighthq/sdk` **0.5.1-next.1909.7bccf72** on 2026-09-30. Regenerate with `npm run sizes`.
 
 | Sample | gl |
 |---|---|

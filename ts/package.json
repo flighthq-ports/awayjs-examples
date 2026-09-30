@@ -22,14 +22,14 @@
     "check": "npm run typecheck && npm run lint:assets && npm run build"
   },
   "dependencies": {
-    "@flighthq/effects-gl": "0.5.1-next.1906.1e09ca0",
-    "@flighthq/host-web": "0.5.1-next.1906.1e09ca0",
-    "@flighthq/render": "0.5.1-next.1906.1e09ca0",
-    "@flighthq/render-gl": "0.5.1-next.1906.1e09ca0",
-    "@flighthq/sdk": "0.5.1-next.1906.1e09ca0"
+    "@flighthq/effects-gl": "0.5.1-next.1909.7bccf72",
+    "@flighthq/host-web": "0.5.1-next.1909.7bccf72",
+    "@flighthq/render": "0.5.1-next.1909.7bccf72",
+    "@flighthq/render-gl": "0.5.1-next.1909.7bccf72",
+    "@flighthq/sdk": "0.5.1-next.1909.7bccf72"
   },
   "devDependencies": {
-    "@flighthq/vite-plugin-manifest": "0.5.1-next.1906.1e09ca0",
+    "@flighthq/vite-plugin-manifest": "0.5.1-next.1909.7bccf72",
     "@types/node": "^24.0.0",
     "playwright": "^1.61.1",
     "tsx": "^4.22.4",
