@@ -1,5 +1,5 @@
 import type { Mesh } from '@flighthq/sdk';
-import { webHostImage } from '@flighthq/host-web';
+import { webHostImage, webHostImageDecode } from '@flighthq/host-web';
 import type {
   Scene3DLights,
 } from '@flighthq/sdk';
@@ -40,6 +40,16 @@ const lights: Scene3DLights = createScene3DLightsFromDocument(awdDocument);
 // The parsed texture references retain their document resource back-edge, so the ordinary load pass
 // resolves the embedded diffuse/normal/specular byte blobs without a material-texture lister.
 const resourceResolver = createBuiltInScene3DResourceResolver(webHostImage);
+// shambler.awd embeds its six textures as JPEG/PNG byte ranges rather than file references, and an
+// embedded reference decodes through this capability alone. Without it every resource settles to
+// Failed/"Image resource unavailable" — which loadScene3DResources swallows through Promise.allSettled,
+// so the model just draws untextured and nothing is reported.
+//
+// Assigned rather than passed as the `imageDecode` option it looks like it should be: as of
+// 0.5.1-next.1903, initializeScene3DResourceResolver wires `fetch` and `registry` off the options but
+// never copies `imageDecode`, while resolveScene3DResources reads `resolver.imageDecode ?? {}`. Passing
+// it to the factory type-checks and is then silently discarded.
+resourceResolver.imageDecode = webHostImageDecode;
 await loadScene3DResources(awdScene, resourceResolver);
 addNodeChild(scene.root, awdScene.root);
 
