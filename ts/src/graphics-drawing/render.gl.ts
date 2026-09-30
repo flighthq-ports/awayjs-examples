@@ -3,6 +3,7 @@ import {
   beginGlRenderPass,
   createGlScreenRenderTarget,
   createMatrix,
+  enableGlClipSupport,
   endGlRenderPass,
   glRenderInfrastructure,
   // glScene2DRenderPreset,
@@ -26,6 +27,10 @@ export function setupRenderer() {
   );
   document.getElementById('app')?.replaceChildren(canvas);
   if (!canvas.parentElement) document.body.appendChild(canvas);
+  // Installs the clip hooks that realize each node's `clip` as a scissor or a stencil during the draw
+  // walk. It is opt-in and not part of glRenderInfrastructure, so without it setNode2DClip is accepted
+  // and then silently ignored — every logo draws unclipped instead of inside its circle.
+  enableGlClipSupport(state);
   const target = createGlScreenRenderTarget(state.gl);
   return {
     canvas,
