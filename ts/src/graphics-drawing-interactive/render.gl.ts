@@ -14,7 +14,16 @@ import {
 import { createExampleGlSurface } from '../../shared/glSurface';
 
 function createMinimalScene2DGlRegistries(): GlRenderStateOptions {
-  return { ...glRenderInfrastructure, nodeRenderers: new Map([[ShapeKind, glShapeRenderer]]) };
+  return {
+    ...glRenderInfrastructure,
+    // Back to the default compact open outlines. glRenderInfrastructure opts into
+    // tessellateStrokePath, whose pathological-geometry rejection discards exactly what this example
+    // produces: a freehand stroke that crosses itself. A rejected stroke makes the mesh path report
+    // "not drawn" and fall through to the raster path, which registers no rasterizer here — so the
+    // drawing stopped appearing the moment the line first crossed, which reads as the drag ending.
+    strokeTessellator: null,
+    nodeRenderers: new Map([[ShapeKind, glShapeRenderer]]),
+  };
 }
 
 export function setupRenderer() {
