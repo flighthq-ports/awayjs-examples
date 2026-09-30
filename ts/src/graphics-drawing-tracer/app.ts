@@ -41,9 +41,9 @@ const root = createDisplayObject();
 // three styles are appended to one Shape, its final white 5px style strokes the entire path. Separate
 // shapes force separate raster/stroke passes and preserve the black → gray → white tracer progression.
 const tracerShapes = [
-  { shape: createShape(), thickness: 1, color: 0x000000 },
-  { shape: createShape(), thickness: 3, color: 0xcccccc },
-  { shape: createShape(), thickness: 5, color: 0xffffff },
+  { shape: createShape(), thickness: 1, color: 0x000000ff },
+  { shape: createShape(), thickness: 3, color: 0xccccccff },
+  { shape: createShape(), thickness: 5, color: 0xffffffff },
 ] as const;
 for (const tracer of tracerShapes) {
   addNodeChild(root, tracer.shape);
@@ -56,7 +56,7 @@ invalidateNodeLocalTransform(movingRect);
 
 const markers = offsets.map(([dx, dy]) => {
   const c = createShape();
-  appendShapeBeginFill(c, 0xdddddd, 1);
+  appendShapeBeginFill(c, 0xddddddff, 1);
   appendShapeCircle(c, 0, 0, 5);
   appendShapeEndFill(c);
   c.x = dx;

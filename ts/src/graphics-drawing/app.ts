@@ -18,8 +18,16 @@ import { setupRenderer } from './render.gl';
 const renderer = setupRenderer();
 const root = createDisplayObject();
 
+// Flight colors are RGBA, so the alpha byte is part of the value rather than implied. Packing this as
+// 24-bit RGB shifts every channel one byte right and leaves alpha at zero, which draws nothing.
+// `>>> 0` because the red byte reaching 0x80 makes the shift result negative in int32.
 function packColor(r: number, g: number, b: number): number {
-  return ((Math.round(r * 255) & 0xff) << 16) | ((Math.round(g * 255) & 0xff) << 8) | (Math.round(b * 255) & 0xff);
+  return (
+    (((Math.round(r * 255) & 0xff) << 24) |
+      ((Math.round(g * 255) & 0xff) << 16) |
+      ((Math.round(b * 255) & 0xff) << 8) |
+      0xff) >>> 0
+  );
 }
 
 function buildBatmanLogo(fillColor: number, strokeColor: number): Shape {

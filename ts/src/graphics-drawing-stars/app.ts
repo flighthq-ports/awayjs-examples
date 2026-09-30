@@ -31,7 +31,7 @@ let startY = 0;
 
 function addBackground(): void {
   const bg = createShape();
-  appendShapeBeginFill(bg, 0xdddddd, 1);
+  appendShapeBeginFill(bg, 0xddddddff, 1);
   appendShapeRectangle(bg, 0, 0, window.innerWidth, window.innerHeight);
   appendShapeEndFill(bg);
   addNodeChild(root, bg);
@@ -39,8 +39,11 @@ function addBackground(): void {
 
 addBackground();
 
+// Flight colors are RGBA, so the alpha byte is part of the value rather than implied. Packing this as
+// 24-bit RGB shifts every channel one byte right and leaves alpha at zero, which draws nothing.
+// `>>> 0` because the red byte reaching 0x80 makes the shift result negative in int32.
 function packColor(r: number, g: number, b: number): number {
-  return ((r & 0xff) << 16) | ((g & 0xff) << 8) | (b & 0xff);
+  return (((r & 0xff) << 24) | ((g & 0xff) << 16) | ((b & 0xff) << 8) | 0xff) >>> 0;
 }
 
 function drawStar(star: Shape, radiusOuter: number): void {

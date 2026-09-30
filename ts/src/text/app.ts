@@ -38,13 +38,13 @@ for (let i = 0; i < 30; i++) {
   const tf = createRichText();
   tf.data.defaultTextFormat = {
     font: font.family,
-    color: 0xff0000,
+    color: 0xff0000ff,
     size: 40,
   };
   tf.data.text = '12345\n67890';
   tf.data.background = true;
   tf.data.border = true;
-  tf.data.borderColor = 0xff0000;
+  tf.data.borderColor = 0xff0000ff;
   tf.data.multiline = true;
   tf.data.selectable = true;
   tf.x = (Math.random() - 0.5) * 1000 * (width / height);

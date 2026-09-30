@@ -37,7 +37,7 @@ let isMouseDown = false;
 const root = createDisplayObject();
 
 const bgShape = createShape();
-appendShapeBeginFill(bgShape, 0xdddddd);
+appendShapeBeginFill(bgShape, 0xddddddff);
 appendShapeRectangle(bgShape, 0, 0, window.innerWidth, window.innerHeight);
 appendShapeEndFill(bgShape);
 addNodeChild(root, bgShape);
@@ -46,7 +46,7 @@ const shape = createShape();
 addNodeChild(root, shape);
 
 const circleGraphic = createShape();
-appendShapeBeginFill(circleGraphic, 0xff0000);
+appendShapeBeginFill(circleGraphic, 0xff0000ff);
 appendShapeCircle(circleGraphic, 0, 0, 30);
 appendShapeEndFill(circleGraphic);
 circleGraphic.alpha = 0;
@@ -55,8 +55,8 @@ addNodeChild(root, circleGraphic);
 
 function drawShape(): void {
   clearShapeCommands(shape);
-  appendShapeBeginFill(shape, 0xffffff);
-  appendShapeLineStyle(shape, 5, 0xff0000, 1, false, undefined, 'round', 'miter', 1.8);
+  appendShapeBeginFill(shape, 0xffffffff);
+  appendShapeLineStyle(shape, 5, 0xff0000ff, 1, false, undefined, 'round', 'miter', 1.8);
 
   if (drawingPath.length === 0) {
     invalidateNodeRender(shape);

@@ -7,10 +7,12 @@ import type {
 } from '@flighthq/sdk';
 import {
   beginGlEffectPass,
+  BlinnPhongMaterialKind,
   createFxaaEffect,
   createGlEffectState,
   createToneMapEffect,
   endGlEffectPass,
+  glBlinnPhongMeshMaterialRenderer,
   // glScene3DRenderPreset,
   registerGlFxaaEffect,
   registerGlToneMapEffect,
@@ -29,6 +31,14 @@ import { createExampleGlSurface } from '../../shared/glSurface';
 function createMinimalScene3DGlRegistries(): GlRenderStateOptions {
   return {
     ...glOptions,
+    // Also not derivable from content, and the reason this merges rather than spreads alone: the
+    // hover highlight is a BlinnPhongMaterial this file builds in app.ts, so no amount of reading
+    // suzanne.awd can predict it. Without this entry the hovered mesh has no renderer and vanishes
+    // instead of turning red.
+    materialRenderers: new Map([
+      ...(glOptions.materialRenderers ?? []),
+      [BlinnPhongMaterialKind, glBlinnPhongMeshMaterialRenderer],
+    ]),
     // Not derivable from content: a texture resolver is chosen by how the host supplies pixels, not
     // by anything the AWD file says.
     textureResolvers: standardGlTextureResolvers,
