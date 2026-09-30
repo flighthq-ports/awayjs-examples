@@ -15,9 +15,9 @@ Measured against `@flighthq/sdk` **0.5.1-next.1903.956d5a5** on 2026-09-30. Rege
 | `generate-fnt` | 43.3 KB |
 | `globe` | 44.3 KB |
 | `graphics-drawing` | 35.6 KB |
-| `graphics-drawing-interactive` | 39.0 KB |
+| `graphics-drawing-interactive` | 42.3 KB |
 | `graphics-drawing-stars` | 38.8 KB |
-| `graphics-drawing-tracer` | 34.6 KB |
+| `graphics-drawing-tracer` | 37.9 KB |
 | `hello-awayjs` | 30.9 KB |
 | `load-3ds` | 47.2 KB |
 | `load-awd` | 44.0 KB |
