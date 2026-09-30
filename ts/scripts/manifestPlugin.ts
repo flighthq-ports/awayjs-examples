@@ -5,6 +5,7 @@ import type { HostDecompressDeflateCapability } from '@flighthq/types/contract';
 import { CompressionFraming } from '@flighthq/types/contract';
 import {
   BUILT_IN_REQUIREMENT_CATALOG_ENTRIES,
+  BUILT_IN_REQUIREMENT_DISPOSITIONS,
   BUILT_IN_REQUIREMENT_TRANSLATIONS,
   createRequirementCatalog,
 } from '@flighthq/requirement-catalog/contract';
@@ -41,12 +42,19 @@ const nodeDeflate: HostDecompressDeflateCapability = {
  * The translations are the second argument rather than an afterthought: they carry a
  * `document.format` requirement over to the node kinds a renderer needs, and a catalog built without
  * them resolves the parser fragment while every render fragment comes back empty.
+ *
+ * The dispositions are the third for the same reason. They are the rows saying a requirement is
+ * deliberately not resolvable — `md2.Mesh` and `md5.Mesh` are bedrock, the parser reads them
+ * unconditionally and there is no handler to name. Omit them and the analyzer cannot tell "nothing
+ * owns this" from "nothing is meant to", so every build warns `no catalog entry for document.format
+ * md5.Mesh` about content that is handled correctly.
  */
 export function createFlightManifestPlugin(): Plugin {
   return createManifestPlugin({
     catalog: createRequirementCatalog(
       BUILT_IN_REQUIREMENT_CATALOG_ENTRIES,
       BUILT_IN_REQUIREMENT_TRANSLATIONS,
+      BUILT_IN_REQUIREMENT_DISPOSITIONS,
     ),
     deflate: nodeDeflate,
     onDiagnostic: (message) => console.warn(`[flight-manifest] ${message}`),
