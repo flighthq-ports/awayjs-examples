@@ -11,6 +11,8 @@ import {
   renderGlScene2D,
   RichTextKind,
 } from '@flighthq/sdk';
+import { webHostCanvasGroup, webHostImage } from '@flighthq/host-web';
+
 import { createExampleGlSurface } from '../../shared/glSurface';
 
 function createMinimalScene2DGlRegistries(): GlRenderStateOptions {
@@ -23,6 +25,9 @@ export function setupRenderer() {
   const registries = createMinimalScene2DGlRegistries();
   const { canvas, clear, state } = createExampleGlSurface(
     window.innerWidth, window.innerHeight, pixelRatio, 0xccccccff, registries,
+    // RichText rasterizes its glyphs through a 2D canvas and uploads the result as a texture, so it
+    // draws nothing without these two.
+    { canvasHost: webHostCanvasGroup.context, imageHost: webHostImage },
   );
   document.getElementById('app')?.replaceChildren(canvas);
   if (!canvas.parentElement) document.body.appendChild(canvas);
