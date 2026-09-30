@@ -65,10 +65,7 @@ for (let i = 0; i < 300; i++) {
   tf.data.autoSize = 'right';
   tf.data.background = true;
   tf.data.border = true;
-  // 24-bit RGB, deliberately not RGBA like the text color above: glRichTextRenderer puts the border
-  // and background through computeRgbHexString (`color & 0xffffff`) while the text color goes through
-  // computeRgbaCssString. An 8-digit value here drops the red byte and strokes the field blue.
-  tf.data.borderColor = 0xff0000;
+  tf.data.borderColor = 0xff0000ff;
   tf.data.multiline = true;
   tf.data.selectable = true;
   tf.x = (Math.random() - 0.5) * 1000 * (width / height);
