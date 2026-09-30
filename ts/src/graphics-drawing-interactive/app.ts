@@ -33,10 +33,6 @@ document.body.style.margin = '0';
 const renderer = setupRenderer();
 const drawingPath: DrawingPathEntry[] = [];
 let isMouseDown = false;
-// The last raw pointer sample, kept alongside the path because a curve entry stores the midpoint
-// rather than the sample it came from — so the path's own tail is not the pen's last position.
-let lastSampleX = 0;
-let lastSampleY = 0;
 
 const root = createDisplayObject();
 
@@ -79,34 +75,21 @@ function drawShape(): void {
   invalidateNodeRender(shape);
 }
 
-// Each entry is the END of one segment, so a stroke has to APPEND as the pointer moves. Mutating the
-// tail instead — which is what this did — leaves the path one point long forever, and drawShape()
-// then emits a bare moveTo and draws nothing at all.
 function updateNewPointForMousePosition(x: number, y: number): void {
-  if (!isMouseDown) return;
-
-  const deltaX = x - lastSampleX;
-  const deltaY = y - lastSampleY;
-  const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
-
-  if (distance > 20) {
-    // The pointer skipped, so round the corner instead of cornering at the sample: curve to the
-    // midpoint using the previous sample as the control point. That keeps the curve tangent to the
-    // stroke, which a quadratic ending on the sample itself would not be.
-    drawingPath.push({
-      cmd: 'c',
-      cx: lastSampleX,
-      cy: lastSampleY,
-      x: lastSampleX + deltaX / 2,
-      y: lastSampleY + deltaY / 2,
-    });
-  } else {
-    drawingPath.push({ cmd: 'l', x, y });
+  if (isMouseDown) {
+    const last = drawingPath[drawingPath.length - 1];
+    const deltaX = x - last.x;
+    const deltaY = y - last.y;
+    const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+    if (distance > 20) {
+      last.cmd = 'c';
+      last.cx = last.x - deltaX;
+      last.cy = last.y - deltaY;
+    } else {
+      last.cmd = 'l';
+    }
+    drawShape();
   }
-
-  lastSampleX = x;
-  lastSampleY = y;
-  drawShape();
 }
 
 const input = createInputManager();
@@ -126,10 +109,10 @@ connectSignal(input.onPointerDown, (data) => {
     x: data.x,
     y: data.y,
   });
-  lastSampleX = data.x;
-  lastSampleY = data.y;
 
-  drawShape();
+  if (drawingPath.length !== 2) {
+    drawShape();
+  }
   isMouseDown = true;
 });
 
